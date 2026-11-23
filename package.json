@@ -1,0 +1,13 @@
+{
+  "name": "redbull-pdv-ui-tests",
+  "private": true,
+  "description": "Teste de interface da loja (Playwright). A loja em si não tem build nem dependências de runtime.",
+  "type": "module",
+  "scripts": {
+    "test:ui": "node tools/ui-smoke-test.mjs"
+  },
+  "devDependencies": {
+    "@gltf-transform/cli": "4.5.1",
+    "playwright": "^1.47.0"
+  }
+}
