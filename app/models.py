@@ -142,6 +142,34 @@ class Order(BaseModel):
     payment: PaymentData
 
 
+class RememberedBuyer(BaseModel):
+    """Comprador lembrado neste aparelho, para a identificação da loja já vir preenchida.
+
+    Os limites do nome seguem os campos da loja: ``"Nome Sobrenome"`` cabe nos 80
+    caracteres de ``buyer_name``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    first_name: str = Field(min_length=1, max_length=40)
+    last_name: str = Field(min_length=1, max_length=39)
+    email: str = Field(min_length=3, max_length=254)
+
+    @field_validator("first_name", "last_name", mode="before")
+    @classmethod
+    def normalize_name(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        if re.search(r"[\x00-\x1f\x7f]", value):
+            raise ValueError("Nome com caracteres inválidos")
+        return " ".join(value.split())
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        return normalize_payer_email(value)
+
+
 class PriceTier(BaseModel):
     """Faixa da tabela fixa de preços (``app/pricing.py``), só para exibição."""
 

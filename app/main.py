@@ -35,6 +35,7 @@ from .payment_service import (
     expire_due_payments,
     process_mercadopago_payment,
 )
+from .buyer_memory import router as buyer_memory_router
 from .pricing import price_tiers
 from .stock_panel import router as stock_panel_router
 from .store import store
@@ -109,6 +110,7 @@ app = FastAPI(
 )
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(stock_panel_router)
+app.include_router(buyer_memory_router)
 
 
 @app.get("/", include_in_schema=False)
