@@ -127,27 +127,6 @@ class PriceTier(BaseModel):
     unit_price: float
 
 
-class MercadoPagoWebhookData(BaseModel):
-    id: str | int
-
-
-class MercadoPagoWebhookPayload(BaseModel):
-    id: str | int
-    type: str = Field(default="order", max_length=120)
-    action: str = Field(default="order.updated", max_length=120)
-    data: MercadoPagoWebhookData
-
-
-class ManualReview(BaseModel):
-    id: UUID
-    order_id: UUID
-    buyer_name: str
-    reason: ManualReviewReason
-    details: str | None
-    created_at: datetime
-    resolved_at: datetime | None
-
-
 # ---------------------------------------------------------------------------
 # Controle de estoque (painel /estoque)
 # ---------------------------------------------------------------------------

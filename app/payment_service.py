@@ -19,7 +19,6 @@ from .db.models import (
     WebhookEventORM,
 )
 from .models import (
-    ManualReview,
     ManualReviewReason,
     Order,
     OrderCreate,
@@ -447,32 +446,6 @@ async def _flag_manual_review(
         .on_conflict_do_nothing(index_elements=["order_id", "reason"])
     )
     await db.execute(statement)
-
-
-async def list_manual_reviews(
-    db: AsyncSession,
-    unresolved_only: bool = True,
-) -> list[ManualReview]:
-    statement = (
-        select(ManualReviewORM, OrderORM.buyer_name)
-        .join(OrderORM, OrderORM.id == ManualReviewORM.order_id)
-        .order_by(ManualReviewORM.created_at)
-    )
-    if unresolved_only:
-        statement = statement.where(ManualReviewORM.resolved_at.is_(None))
-    rows = (await db.execute(statement)).all()
-    return [
-        ManualReview(
-            id=review.id,
-            order_id=review.order_id,
-            buyer_name=buyer_name,
-            reason=ManualReviewReason(review.reason),
-            details=review.details,
-            created_at=review.created_at,
-            resolved_at=review.resolved_at,
-        )
-        for review, buyer_name in rows
-    ]
 
 
 async def _load_quantities(
