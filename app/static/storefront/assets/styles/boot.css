@@ -1,0 +1,425 @@
+/* Loading: a geladeira apagada, de frente, com a luz azul correndo pela moldura do LED.
+   Aparece antes de qualquer script, sem fontes e sem imports. A revelação fica em src/boot.js. */
+
+html.is-booting {
+  overflow: hidden;
+  background: #000;
+}
+
+/* A loja monta e já é pintada por baixo do fundo preto opaco do loading (fica invisível; o
+   boot.js a deixa inert, sem foco nem toque, até a revelação). Assim a revelação só compõe
+   camadas prontas, sem pintar a loja inteira no meio da animação. */
+
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+/* Pousada, a imagem faz o papel da geladeira 3D até ela assumir (ou para sempre, sem WebGL):
+   fica na camada do canvas, acima do fundo e abaixo de toda a interface (painel 4 … gaveta 9). */
+.boot.is-landed {
+  z-index: 1;
+}
+
+.boot__bg {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+
+.boot__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* proporções geradas por tools/render-boot-poster.mjs */
+/* boot:size */
+.boot__stage { --ar: 0.95825; --fw: 0.75436; --fh: 0.89120; }
+@media (max-width: 1023px) { .boot__stage { --ar: 0.95114; --fw: 0.75602; --fh: 0.88981; } }
+.boot__led--m .boot__comet { left: -5.40199%; top: -2.23264%; width: 110.80398%; height: 105.39010%; animation-name: boot-orbit-m; }
+@keyframes boot-orbit-m {
+  0.00000% { transform: rotate(0.00deg); }
+  1.11111% { transform: rotate(4.47deg); }
+  2.22222% { transform: rotate(8.89deg); }
+  3.33333% { transform: rotate(13.20deg); }
+  4.44444% { transform: rotate(17.37deg); }
+  5.55556% { transform: rotate(21.35deg); }
+  6.66667% { transform: rotate(25.14deg); }
+  7.77778% { transform: rotate(28.70deg); }
+  8.88889% { transform: rotate(32.03deg); }
+  10.00000% { transform: rotate(35.14deg); }
+  11.11111% { transform: rotate(38.55deg); }
+  12.22222% { transform: rotate(41.45deg); }
+  13.33333% { transform: rotate(44.05deg); }
+  14.44444% { transform: rotate(46.93deg); }
+  15.55556% { transform: rotate(50.10deg); }
+  16.66667% { transform: rotate(53.59deg); }
+  17.77778% { transform: rotate(57.43deg); }
+  18.88889% { transform: rotate(61.63deg); }
+  20.00000% { transform: rotate(66.18deg); }
+  21.11111% { transform: rotate(71.08deg); }
+  22.22222% { transform: rotate(76.29deg); }
+  23.33333% { transform: rotate(81.74deg); }
+  24.44444% { transform: rotate(87.34deg); }
+  25.55556% { transform: rotate(92.99deg); }
+  26.66667% { transform: rotate(98.58deg); }
+  27.77778% { transform: rotate(104.01deg); }
+  28.88889% { transform: rotate(109.20deg); }
+  30.00000% { transform: rotate(114.09deg); }
+  31.11111% { transform: rotate(118.62deg); }
+  32.22222% { transform: rotate(122.80deg); }
+  33.33333% { transform: rotate(126.62deg); }
+  34.44444% { transform: rotate(130.09deg); }
+  35.55556% { transform: rotate(133.25deg); }
+  36.66667% { transform: rotate(136.10deg); }
+  37.77778% { transform: rotate(138.69deg); }
+  38.88889% { transform: rotate(141.58deg); }
+  40.00000% { transform: rotate(144.98deg); }
+  41.11111% { transform: rotate(148.09deg); }
+  42.22222% { transform: rotate(151.41deg); }
+  43.33333% { transform: rotate(154.96deg); }
+  44.44444% { transform: rotate(158.73deg); }
+  45.55556% { transform: rotate(162.70deg); }
+  46.66667% { transform: rotate(166.85deg); }
+  47.77778% { transform: rotate(171.15deg); }
+  48.88889% { transform: rotate(175.55deg); }
+  50.00000% { transform: rotate(180.00deg); }
+  51.11111% { transform: rotate(184.45deg); }
+  52.22222% { transform: rotate(188.85deg); }
+  53.33333% { transform: rotate(193.15deg); }
+  54.44444% { transform: rotate(197.30deg); }
+  55.55556% { transform: rotate(201.27deg); }
+  56.66667% { transform: rotate(205.04deg); }
+  57.77778% { transform: rotate(208.59deg); }
+  58.88889% { transform: rotate(211.91deg); }
+  60.00000% { transform: rotate(215.02deg); }
+  61.11111% { transform: rotate(218.42deg); }
+  62.22222% { transform: rotate(221.31deg); }
+  63.33333% { transform: rotate(223.90deg); }
+  64.44444% { transform: rotate(226.75deg); }
+  65.55556% { transform: rotate(229.91deg); }
+  66.66667% { transform: rotate(233.38deg); }
+  67.77778% { transform: rotate(237.20deg); }
+  68.88889% { transform: rotate(241.38deg); }
+  70.00000% { transform: rotate(245.91deg); }
+  71.11111% { transform: rotate(250.80deg); }
+  72.22222% { transform: rotate(255.99deg); }
+  73.33333% { transform: rotate(261.42deg); }
+  74.44444% { transform: rotate(267.01deg); }
+  75.55556% { transform: rotate(272.66deg); }
+  76.66667% { transform: rotate(278.26deg); }
+  77.77778% { transform: rotate(283.71deg); }
+  78.88889% { transform: rotate(288.92deg); }
+  80.00000% { transform: rotate(293.82deg); }
+  81.11111% { transform: rotate(298.37deg); }
+  82.22222% { transform: rotate(302.57deg); }
+  83.33333% { transform: rotate(306.41deg); }
+  84.44444% { transform: rotate(309.90deg); }
+  85.55556% { transform: rotate(313.07deg); }
+  86.66667% { transform: rotate(315.95deg); }
+  87.77778% { transform: rotate(318.55deg); }
+  88.88889% { transform: rotate(321.45deg); }
+  90.00000% { transform: rotate(324.86deg); }
+  91.11111% { transform: rotate(327.97deg); }
+  92.22222% { transform: rotate(331.30deg); }
+  93.33333% { transform: rotate(334.86deg); }
+  94.44444% { transform: rotate(338.65deg); }
+  95.55556% { transform: rotate(342.63deg); }
+  96.66667% { transform: rotate(346.80deg); }
+  97.77778% { transform: rotate(351.11deg); }
+  98.88889% { transform: rotate(355.53deg); }
+  100% { transform: rotate(360deg); }
+}
+.boot__led--d .boot__comet { left: -3.45766%; top: -0.62563%; width: 106.91532%; height: 102.45122%; animation-name: boot-orbit-d; }
+@keyframes boot-orbit-d {
+  0.00000% { transform: rotate(0.00deg); }
+  1.11111% { transform: rotate(4.48deg); }
+  2.22222% { transform: rotate(8.91deg); }
+  3.33333% { transform: rotate(13.23deg); }
+  4.44444% { transform: rotate(17.40deg); }
+  5.55556% { transform: rotate(21.40deg); }
+  6.66667% { transform: rotate(25.18deg); }
+  7.77778% { transform: rotate(28.75deg); }
+  8.88889% { transform: rotate(32.09deg); }
+  10.00000% { transform: rotate(35.20deg); }
+  11.11111% { transform: rotate(38.61deg); }
+  12.22222% { transform: rotate(41.52deg); }
+  13.33333% { transform: rotate(44.13deg); }
+  14.44444% { transform: rotate(47.01deg); }
+  15.55556% { transform: rotate(50.19deg); }
+  16.66667% { transform: rotate(53.69deg); }
+  17.77778% { transform: rotate(57.54deg); }
+  18.88889% { transform: rotate(61.75deg); }
+  20.00000% { transform: rotate(66.31deg); }
+  21.11111% { transform: rotate(71.22deg); }
+  22.22222% { transform: rotate(76.43deg); }
+  23.33333% { transform: rotate(81.88deg); }
+  24.44444% { transform: rotate(87.49deg); }
+  25.55556% { transform: rotate(93.14deg); }
+  26.66667% { transform: rotate(98.73deg); }
+  27.77778% { transform: rotate(104.16deg); }
+  28.88889% { transform: rotate(109.34deg); }
+  30.00000% { transform: rotate(114.21deg); }
+  31.11111% { transform: rotate(118.74deg); }
+  32.22222% { transform: rotate(122.90deg); }
+  33.33333% { transform: rotate(126.71deg); }
+  34.44444% { transform: rotate(130.18deg); }
+  35.55556% { transform: rotate(133.32deg); }
+  36.66667% { transform: rotate(136.17deg); }
+  37.77778% { transform: rotate(138.76deg); }
+  38.88889% { transform: rotate(141.63deg); }
+  40.00000% { transform: rotate(145.04deg); }
+  41.11111% { transform: rotate(148.14deg); }
+  42.22222% { transform: rotate(151.46deg); }
+  43.33333% { transform: rotate(155.01deg); }
+  44.44444% { transform: rotate(158.77deg); }
+  45.55556% { transform: rotate(162.74deg); }
+  46.66667% { transform: rotate(166.88deg); }
+  47.77778% { transform: rotate(171.17deg); }
+  48.88889% { transform: rotate(175.56deg); }
+  50.00000% { transform: rotate(180.00deg); }
+  51.11111% { transform: rotate(184.44deg); }
+  52.22222% { transform: rotate(188.83deg); }
+  53.33333% { transform: rotate(193.12deg); }
+  54.44444% { transform: rotate(197.26deg); }
+  55.55556% { transform: rotate(201.23deg); }
+  56.66667% { transform: rotate(204.99deg); }
+  57.77778% { transform: rotate(208.54deg); }
+  58.88889% { transform: rotate(211.86deg); }
+  60.00000% { transform: rotate(214.96deg); }
+  61.11111% { transform: rotate(218.37deg); }
+  62.22222% { transform: rotate(221.24deg); }
+  63.33333% { transform: rotate(223.83deg); }
+  64.44444% { transform: rotate(226.68deg); }
+  65.55556% { transform: rotate(229.82deg); }
+  66.66667% { transform: rotate(233.29deg); }
+  67.77778% { transform: rotate(237.10deg); }
+  68.88889% { transform: rotate(241.26deg); }
+  70.00000% { transform: rotate(245.79deg); }
+  71.11111% { transform: rotate(250.66deg); }
+  72.22222% { transform: rotate(255.84deg); }
+  73.33333% { transform: rotate(261.27deg); }
+  74.44444% { transform: rotate(266.86deg); }
+  75.55556% { transform: rotate(272.51deg); }
+  76.66667% { transform: rotate(278.12deg); }
+  77.77778% { transform: rotate(283.57deg); }
+  78.88889% { transform: rotate(288.78deg); }
+  80.00000% { transform: rotate(293.69deg); }
+  81.11111% { transform: rotate(298.25deg); }
+  82.22222% { transform: rotate(302.46deg); }
+  83.33333% { transform: rotate(306.31deg); }
+  84.44444% { transform: rotate(309.81deg); }
+  85.55556% { transform: rotate(312.99deg); }
+  86.66667% { transform: rotate(315.87deg); }
+  87.77778% { transform: rotate(318.48deg); }
+  88.88889% { transform: rotate(321.39deg); }
+  90.00000% { transform: rotate(324.80deg); }
+  91.11111% { transform: rotate(327.91deg); }
+  92.22222% { transform: rotate(331.25deg); }
+  93.33333% { transform: rotate(334.82deg); }
+  94.44444% { transform: rotate(338.60deg); }
+  95.55556% { transform: rotate(342.60deg); }
+  96.66667% { transform: rotate(346.77deg); }
+  97.77778% { transform: rotate(351.09deg); }
+  98.88889% { transform: rotate(355.52deg); }
+  100% { transform: rotate(360deg); }
+}
+/* /boot:size */
+
+/* tamanho inicial: a geladeira grande e centralizada, sem passar das bordas */
+.boot__stage {
+  position: relative;
+  aspect-ratio: var(--ar);
+  height: min(calc(62vh / var(--fh)), calc(56vw / (var(--ar) * var(--fw))));
+  height: min(calc(62svh / var(--fh)), calc(56vw / (var(--ar) * var(--fw))));
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+@media (max-width: 1023px) {
+  .boot__stage {
+    height: min(calc(58vh / var(--fh)), calc(80vw / (var(--ar) * var(--fw))));
+    height: min(calc(58svh / var(--fh)), calc(80vw / (var(--ar) * var(--fw))));
+  }
+}
+
+.boot__art {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+}
+
+.boot__img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* luz do LED aceso: somada por cima da geladeira apagada */
+.boot__glow {
+  mix-blend-mode: plus-lighter;
+  opacity: 0;
+  transition: opacity .35s ease-out;
+}
+
+.boot.is-lit .boot__glow {
+  opacity: 1;
+}
+
+/* minhoca: um trecho de luz com cauda percorrendo a moldura, sempre na mesma velocidade */
+.boot__led {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.boot__led--d {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .boot__led--m {
+    display: none;
+  }
+
+  .boot__led--d {
+    display: block;
+  }
+}
+
+.boot__worm {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  transition: opacity .25s linear;
+}
+
+.boot__led--m .boot__worm {
+  -webkit-mask-image: url("../loading/led-ring-m.svg");
+  mask-image: url("../loading/led-ring-m.svg");
+}
+
+.boot__led--d .boot__worm {
+  -webkit-mask-image: url("../loading/led-ring-d.svg");
+  mask-image: url("../loading/led-ring-d.svg");
+}
+
+.boot.is-lit .boot__worm {
+  opacity: 0;
+}
+
+/* cometa: degradê cônico com a cabeça para cima; a máscara deixa ver só a moldura (e o halo
+   em volta dela). Gira com transform (fora da thread principal), sentido horário, 2,4 s por
+   volta; o tamanho, a posição e os quadros-chave vêm do bloco gerado acima. */
+.boot__comet {
+  position: absolute;
+  border-radius: 50%;
+  background: conic-gradient(from -96deg, rgba(31, 91, 255, 0) 0deg, rgba(31, 91, 255, .18) 30deg, rgba(42, 99, 255, .55) 58deg, #2a63ff 76deg, #4f86ff 89deg, #9fbfff 94.4deg, #e6efff 95.6deg, rgba(230, 239, 255, 0) 96.4deg, rgba(31, 91, 255, 0) 360deg);
+  animation-duration: 2.4s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+/* o vidro é limpo de cima para baixo e revela a geladeira 3D. A borda macia é uma máscara
+   numa camada 3× mais alta que desce enquanto o conteúdo sobe na mesma medida (boot.js): a
+   imagem fica parada e só transform anima, fora da thread principal. */
+.boot__wipe,
+.boot__wipe-in {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 100%;
+}
+
+.boot__art.is-wiping .boot__wipe {
+  top: -200%;
+  height: 300%;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0 33.3%, #000 66.6% 100%);
+  mask-image: linear-gradient(to bottom, transparent 0 33.3%, #000 66.6% 100%);
+  will-change: transform;
+}
+
+.boot__art.is-wiping .boot__wipe-in {
+  top: 66.66667%;
+  height: 33.33333%;
+  will-change: transform;
+}
+
+/* entrada da interface, seção por seção (o atraso de cada uma vem do script). Só nas três
+   seções: a loja usa .is-entering também no nome do sabor e na lata do carrossel. */
+:is(.brand, .fabs, .dock).is-entering {
+  animation: boot-in .6s ease-out both;
+}
+
+@keyframes boot-in {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+
+  to {
+    opacity: 1;
+    translate: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot__worm {
+    display: none;
+  }
+
+  .boot__glow {
+    animation: boot-breathe 3s ease-in-out infinite;
+  }
+
+  .boot.is-lit .boot__glow {
+    animation: none;
+  }
+
+  :is(.brand, .fabs, .dock).is-entering {
+    animation-duration: .2s;
+  }
+
+  @keyframes boot-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+@keyframes boot-breathe {
+  0%,
+  100% {
+    opacity: .3;
+  }
+
+  50% {
+    opacity: .65;
+  }
+}

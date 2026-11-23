@@ -3,10 +3,10 @@ import asyncio
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select, text, update
 
 from app.db.base import AsyncSessionLocal, engine
-from app.db.models import OrderORM, PriceTierORM, ProductORM
+from app.db.models import OrderORM, ProductORM
 from app.models import (
     OrderCreate,
     OrderItemInput,
@@ -15,6 +15,7 @@ from app.models import (
 )
 from app.main import app
 from app.store import store
+from tests.fakes import pay_via_webhook
 
 
 INITIAL_STOCK = {"original": 24, "tropical": 18, "melancia": 16}
@@ -23,7 +24,6 @@ INITIAL_STOCK = {"original": 24, "tropical": 18, "melancia": 16}
 async def reset_database():
     async with AsyncSessionLocal() as session, session.begin():
         await session.execute(delete(OrderORM))
-        await session.execute(update(PriceTierORM).values(active=True))
         for product_id, stock in INITIAL_STOCK.items():
             await session.execute(
                 update(ProductORM)
@@ -42,7 +42,7 @@ def client():
 
 
 def test_health_and_products(client):
-    assert client.get("/api/health").json()["storage"] == "postgresql"
+    assert client.get("/api/health").json() == {"status": "ok"}
     products = client.get("/api/products").json()
     assert len(products) == 3
     assert all(product["category"] == "Regular" for product in products)
@@ -51,6 +51,64 @@ def test_health_and_products(client):
         "/api/price-tiers", params={"pricing_audience": "MEMBER"}
     ).json()
     assert [tier["unit_price"] for tier in member_tiers] == [8.5, 8.0, 7.5]
+    other_tiers = client.get(
+        "/api/price-tiers", params={"pricing_audience": "NON_MEMBER"}
+    ).json()
+    assert [tier["unit_price"] for tier in other_tiers] == [12.0]
+
+
+def test_store_page_is_served_with_strict_csp(client):
+    page = client.get("/")
+    assert page.status_code == 200
+    assert '<main id="storefront">' in page.text
+    assert page.headers["cache-control"] == "no-store"
+    assert page.headers["x-frame-options"] == "DENY"
+    csp = page.headers["content-security-policy"]
+    assert "script-src 'self'" in csp and "style-src 'self'" in csp
+    assert "unsafe-inline" not in csp
+    assert client.get("/static/storefront/src/pdv.js").status_code == 200
+    # O HTML da loja só existe pela rota "/", com os cabeçalhos acima.
+    assert client.get("/static/index.html").status_code == 404
+
+
+def test_store_assets_are_versioned_cached_and_compressed(client):
+    import re
+    from pathlib import Path
+
+    page = client.get("/").text
+    # todos os arquivos da loja apontam para a versão atual (cache longo seguro)
+    assert "/static/storefront/" not in page
+    base = re.search(r'/static/v/([0-9a-f]{12})/storefront/', page).group(0)
+    assert f'<link rel="modulepreload" href="{base}src/pdv.js">' in page
+    # o código 3D vem sob demanda, fora do modulepreload; só o enquadramento (sem Three.js),
+    # que o loading usa para levar a geladeira ao lugar dela, é pré-carregado
+    assert f'<link rel="modulepreload" href="{base}src/scene/cooler-frame.js">' in page
+    assert page.count("src/scene/") == 1 and "vendor/three/" not in page
+
+    original = (Path("app/static/storefront/src/pdv.js")).read_bytes()
+    plain = client.get(base + "src/pdv.js", headers={"Accept-Encoding": "identity"})
+    assert plain.status_code == 200
+    assert plain.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert plain.headers["content-type"].startswith("text/javascript")
+    assert "content-encoding" not in plain.headers
+    assert plain.content == original
+
+    zipped = client.get(base + "src/pdv.js", headers={"Accept-Encoding": "gzip"})
+    assert zipped.headers["content-encoding"] == "gzip"
+    # o TestClient já descomprime: o conteúdo entregue é byte a byte o do disco
+    assert zipped.content == original
+    raw = client.get(base + "cooler/latas/studio.hdr", headers={"Accept-Encoding": "gzip"})
+    assert raw.headers["content-type"] == "image/vnd.radiance"
+    assert raw.content == Path("app/static/storefront/cooler/latas/studio.hdr").read_bytes()
+
+    # imagens já comprimidas vão como estão
+    image = client.get(base + "assets/images/cans/original.webp", headers={"Accept-Encoding": "gzip"})
+    assert "content-encoding" not in image.headers
+
+    # nada fora da pasta da loja (".." codificado, como chegaria de um cliente malicioso)
+    assert client.get(base + "%2e%2e/%2e%2e/main.py").status_code == 404
+    assert client.get(base + "..%2f..%2fmain.py").status_code == 404
+    assert client.get(base + "nao-existe.js").status_code == 404
 
 
 @pytest.mark.parametrize(
@@ -60,7 +118,6 @@ def test_health_and_products(client):
 def test_new_order_rejects_missing_or_invalid_email(client, payer_email):
     payload = {
         "buyer_name": "E-mail inválido",
-        "pricing_audience": "MEMBER",
         "items": [{"product_id": "original", "quantity": 1}],
     }
     if payer_email is not None:
@@ -75,7 +132,6 @@ def test_order_normalizes_and_persists_email_without_exposing_it(client):
         json={
             "buyer_name": "Comprador",
             "payer_email": "  Comprador@Example.COM  ",
-            "pricing_audience": "MEMBER",
             "items": [{"product_id": "original", "quantity": 1}],
         },
     )
@@ -102,20 +158,23 @@ def test_legacy_order_with_null_email_remains_readable(client):
         "/api/orders",
         json={
             "buyer_name": "Pedido antigo",
-            "payer_email": "comprador@example.com",
-            "pricing_audience": "MEMBER",
+            "payer_email": "comprador@citi.org.br",
             "items": [{"product_id": "original", "quantity": 1}],
         },
     ).json()
     asyncio.run(engine.dispose())
 
     async def clear_email():
+        # Simula uma linha de antes da coluna existir: a trava de preço recusaria
+        # a alteração, então é desligada só dentro desta transação.
         async with AsyncSessionLocal() as session, session.begin():
+            await session.execute(text("ALTER TABLE orders DISABLE TRIGGER trg_orders_price_guard"))
             await session.execute(
                 update(OrderORM)
                 .where(OrderORM.id == created["id"])
                 .values(payer_email=None)
             )
+            await session.execute(text("ALTER TABLE orders ENABLE TRIGGER trg_orders_price_guard"))
 
     asyncio.run(clear_email())
     asyncio.run(engine.dispose())
@@ -129,8 +188,7 @@ def test_product_listing_shows_stock_minus_active_reservations(client):
         "/api/orders",
         json={
             "buyer_name": "Reserva visível",
-            "payer_email": "comprador@example.com",
-            "pricing_audience": "MEMBER",
+            "payer_email": "comprador@citi.org.br",
             "items": [{"product_id": "original", "quantity": 2}],
         },
     )
@@ -141,20 +199,24 @@ def test_product_listing_shows_stock_minus_active_reservations(client):
     assert original["stock"] == INITIAL_STOCK["original"] - 2
 
 
-def test_order_payment_is_idempotent(client):
+def test_mock_payment_routes_do_not_exist(client):
+    assert client.post("/api/mock/pay/qualquer").status_code == 404
+    assert client.get("/api/mock/qr/qualquer").status_code == 404
+
+
+def test_order_payment_is_idempotent(client, pix_provider):
     created = client.post(
         "/api/orders",
         json={
             "buyer_name": "Felipe",
-            "payer_email": "comprador@example.com",
-            "pricing_audience": "MEMBER",
+            "payer_email": "comprador@citi.org.br",
             "items": [{"product_id": "original", "quantity": 2}],
         },
     )
     assert created.status_code == 201
     order = created.json()
-    first = client.post(f"/api/mock/pay/{order['payment']['txid']}").json()
-    second = client.post(f"/api/mock/pay/{order['payment']['txid']}").json()
+    first = pay_via_webhook(client, pix_provider, order["payment"]["txid"]).json()
+    second = pay_via_webhook(client, pix_provider, order["payment"]["txid"]).json()
     assert first["processed"] is True
     assert second["processed"] is False
 
@@ -163,13 +225,12 @@ def test_order_payment_is_idempotent(client):
     assert refreshed["payment"]["status"] == "APPROVED"
 
 
-def test_order_cancellation_releases_reservation_and_is_idempotent(client):
+def test_order_cancellation_releases_reservation_and_is_idempotent(client, pix_provider):
     created = client.post(
         "/api/orders",
         json={
             "buyer_name": "Cancelamento",
-            "payer_email": "comprador@example.com",
-            "pricing_audience": "MEMBER",
+            "payer_email": "comprador@citi.org.br",
             "items": [{"product_id": "original", "quantity": 2}],
         },
     )
@@ -198,22 +259,24 @@ def test_order_cancellation_releases_reservation_and_is_idempotent(client):
     )
     assert after_cancellation["stock"] == INITIAL_STOCK["original"]
 
-    simulated_payment = client.post(f"/api/mock/pay/{order['payment']['txid']}")
-    assert simulated_payment.status_code == 409
+    # pagamento que chega depois do cancelamento não é perdido: vai para revisão manual
+    late = pay_via_webhook(client, pix_provider, order["payment"]["txid"])
+    assert late.status_code == 200
+    assert late.json()["outcome"] == "approved_after_cancellation"
 
 
-def test_paid_order_cannot_be_cancelled(client):
+def test_paid_order_cannot_be_cancelled(client, pix_provider):
     created = client.post(
         "/api/orders",
         json={
             "buyer_name": "Já pago",
-            "payer_email": "comprador@example.com",
-            "pricing_audience": "MEMBER",
+            "payer_email": "comprador@citi.org.br",
             "items": [{"product_id": "original", "quantity": 1}],
         },
     ).json()
-    paid = client.post(f"/api/mock/pay/{created['payment']['txid']}")
+    paid = pay_via_webhook(client, pix_provider, created["payment"]["txid"])
     assert paid.status_code == 200
+    assert paid.json()["outcome"] == "approved"
 
     cancellation = client.post(f"/api/orders/{created['id']}/cancel")
     assert cancellation.status_code == 409
@@ -225,8 +288,7 @@ def test_order_exposes_locally_generated_pix_qr(client):
         "/api/orders",
         json={
             "buyer_name": "QR local",
-            "payer_email": "comprador@example.com",
-            "pricing_audience": "MEMBER",
+            "payer_email": "comprador@citi.org.br",
             "items": [{"product_id": "original", "quantity": 1}],
         },
     )
@@ -252,14 +314,9 @@ def test_order_uses_progressive_price(client, quantity, unit_price, total):
         "/api/orders",
         json={
             "buyer_name": "Felipe",
-            "payer_email": "comprador@example.com",
-            "pricing_audience": "MEMBER",
+            "payer_email": "comprador@citi.org.br",
             "items": [
-                {
-                    "product_id": "original",
-                    "quantity": quantity,
-                    "unit_price": 0.01,
-                }
+                {"product_id": "original", "quantity": quantity}
             ],
         },
     )
@@ -269,24 +326,23 @@ def test_order_uses_progressive_price(client, quantity, unit_price, total):
     assert order["items"][0]["unit_price"] == unit_price
     assert order["total"] == total
     assert order["pricing_audience"] == "MEMBER"
-    assert isinstance(order["price_tier_id"], int)
+    assert "price_tier_id" not in order
 
 
-@pytest.mark.parametrize(("quantity", "total"), [(1, 12.5), (5, 62.5)])
+@pytest.mark.parametrize(("quantity", "total"), [(1, 12.0), (2, 24.0), (4, 48.0), (5, 60.0)])
 def test_order_uses_fixed_non_member_price(client, quantity, total):
     response = client.post(
         "/api/orders",
         json={
             "buyer_name": "Visitante",
             "payer_email": "comprador@example.com",
-            "pricing_audience": "NON_MEMBER",
             "items": [{"product_id": "original", "quantity": quantity}],
         },
     )
 
     assert response.status_code == 201
     order = response.json()
-    assert order["items"][0]["unit_price"] == 12.5
+    assert order["items"][0]["unit_price"] == 12.0
     assert order["total"] == total
     assert order["pricing_audience"] == "NON_MEMBER"
 
@@ -296,8 +352,7 @@ def test_progressive_price_uses_total_quantity_across_flavors(client):
         "/api/orders",
         json={
             "buyer_name": "Felipe",
-            "payer_email": "comprador@example.com",
-            "pricing_audience": "MEMBER",
+            "payer_email": "comprador@citi.org.br",
             "items": [
                 {"product_id": "original", "quantity": 2},
                 {"product_id": "tropical", "quantity": 2},
@@ -311,51 +366,52 @@ def test_progressive_price_uses_total_quantity_across_flavors(client):
     assert order["total"] == 30.0
 
 
-def test_order_rejects_invalid_pricing_audience(client):
-    response = client.post(
-        "/api/orders",
-        json={
-            "buyer_name": "Felipe",
-            "payer_email": "comprador@example.com",
-            "pricing_audience": "INVALID",
-            "items": [{"product_id": "original", "quantity": 1}],
-        },
+@pytest.mark.parametrize(
+    ("payer_email", "audience"),
+    [
+        ("comprador@citi.org.br", PricingAudience.MEMBER),
+        ("COMPRADOR@CITI.ORG.BR", PricingAudience.MEMBER),
+        ("comprador@sub.citi.org.br", PricingAudience.NON_MEMBER),
+        ("comprador@citi.org.br.exemplo.com", PricingAudience.NON_MEMBER),
+        ("citi.org.br@exemplo.com", PricingAudience.NON_MEMBER),
+        ("comprador@gmail.com", PricingAudience.NON_MEMBER),
+    ],
+)
+def test_pricing_audience_comes_from_payer_email_domain(payer_email, audience):
+    payload = OrderCreate(
+        buyer_name="Felipe",
+        payer_email=payer_email,
+        items=[OrderItemInput(product_id="original", quantity=1)],
     )
+    assert payload.pricing_audience == audience
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "where"),
+    [
+        ("pricing_audience", "MEMBER", "order"),
+        ("total", 0.01, "order"),
+        ("unit_price", 0.01, "order"),
+        ("price_tier_id", 1, "order"),
+        ("unit_price", 0.01, "item"),
+        ("subtotal", 0.01, "item"),
+        ("price", 0.01, "item"),
+    ],
+)
+def test_order_rejects_any_price_sent_by_client(client, field, value, where):
+    item = {"product_id": "original", "quantity": 1}
+    payload = {
+        "buyer_name": "Felipe",
+        "payer_email": "comprador@example.com",
+        "items": [item],
+    }
+    (payload if where == "order" else item)[field] = value
+
+    response = client.post("/api/orders", json=payload)
 
     assert response.status_code == 422
-
-
-def test_order_rejects_quantity_without_active_price_tier():
-    async def disable_member_tiers():
-        await reset_database()
-        async with AsyncSessionLocal() as session, session.begin():
-            await session.execute(
-                update(PriceTierORM)
-                .where(PriceTierORM.pricing_audience == PricingAudience.MEMBER)
-                .values(active=False)
-            )
-        await engine.dispose()
-
-    asyncio.run(disable_member_tiers())
-    try:
-        with TestClient(app) as client:
-            response = client.post(
-                "/api/orders",
-                json={
-                    "buyer_name": "Felipe",
-                    "payer_email": "comprador@example.com",
-                    "pricing_audience": "MEMBER",
-                    "items": [{"product_id": "original", "quantity": 1}],
-                },
-            )
-        asyncio.run(engine.dispose())
-
-        assert response.status_code == 422
-        assert response.json()["detail"] == (
-            "Nenhuma faixa de preço ativa cobre este pedido"
-        )
-    finally:
-        asyncio.run(reset_database())
+    # nada foi reservado: o pedido não chegou a existir
+    assert {p["id"]: p["stock"] for p in client.get("/api/products").json()} == INITIAL_STOCK
 
 
 def test_concurrent_orders_compete_for_last_available_unit():
@@ -375,8 +431,7 @@ def test_concurrent_orders_compete_for_last_available_unit():
                         session,
                         OrderCreate(
                             buyer_name=buyer_name,
-                            payer_email="comprador@example.com",
-                            pricing_audience=PricingAudience.MEMBER,
+                            payer_email="comprador@citi.org.br",
                             items=[OrderItemInput(product_id="original", quantity=1)],
                         ),
                     )
@@ -441,8 +496,7 @@ def test_failure_before_reservation_does_not_create_partial_reservation():
                     session,
                     OrderCreate(
                         buyer_name="Sem estoque",
-                        payer_email="comprador@example.com",
-                        pricing_audience=PricingAudience.MEMBER,
+                        payer_email="comprador@citi.org.br",
                         items=[
                             OrderItemInput(product_id="original", quantity=1),
                             OrderItemInput(product_id="tropical", quantity=1),
@@ -488,8 +542,7 @@ def test_release_reservation_is_idempotent_and_keeps_physical_stock():
                 session,
                 OrderCreate(
                     buyer_name="Liberar duas vezes",
-                    payer_email="comprador@example.com",
-                    pricing_audience=PricingAudience.MEMBER,
+                    payer_email="comprador@citi.org.br",
                     items=[OrderItemInput(product_id="original", quantity=2)],
                 ),
             )

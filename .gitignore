@@ -18,3 +18,6 @@ backup_*.sql
 # Outros arquivos de ambiente (menos o exemplo)
 .env.*
 !.env.example
+
+# Dependências do teste de interface (package.json)
+node_modules/

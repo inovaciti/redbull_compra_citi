@@ -35,10 +35,7 @@ def parse_args() -> argparse.Namespace:
 
 
 async def run(args: argparse.Namespace) -> int:
-    if settings.payment_provider != "mercadopago":
-        raise RuntimeError(
-            "Configure PAYMENT_PROVIDER=mercadopago para executar a reconciliação"
-        )
+    # o provedor é sempre o Mercado Pago; sem as credenciais, a validação falha aqui
     provider = create_payment_provider(settings)
     try:
         async with AsyncSessionLocal() as db:

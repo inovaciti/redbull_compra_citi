@@ -1,0 +1,57 @@
+/* Modo leve (html.is-lite): aparelho que não aguenta a geladeira 3D (src/device-tier.js, modo
+   'none'). A geladeira fica na imagem com o vidro embaçado do loading; aqui o vidro da interface
+   troca o desfoque do fundo (backdrop-filter, caro em GPU fraca) por camadas translúcidas
+   escuras, e as animações que nunca param ficam quietas. Cores, formas e textos são os mesmos. */
+
+.is-lite .glass,
+.is-lite .fab,
+.is-lite .tip,
+.is-lite .veil,
+.is-lite .cart>.lg-lens,
+.is-lite .lg-lens,
+.is-lite .cs-tip,
+.is-lite .cs-step,
+.is-lite .cs-note {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.is-lite .glass {
+  background: linear-gradient(180deg,rgba(40,42,50,.9),rgba(22,23,28,.92));
+}
+
+.is-lite .fab {
+  background-color: rgba(34,36,42,.82);
+}
+
+.is-lite .veil {
+  background: rgba(8,9,12,.62);
+}
+
+.is-lite .cart>.lg-lens {
+  background: rgba(16,17,22,.94);
+}
+
+.is-lite .lg-lens {
+  background: rgba(255,255,255,.06);
+}
+
+.is-lite .cs-note,
+.is-lite .tip {
+  background-color: rgba(40,42,50,.95);
+}
+
+/* animações contínuas: brilho do nome, halo do carrossel, halo do QR, brilho da situação do Pix */
+.is-lite .cv-glow,
+.is-lite .cv-glow::after,
+.is-lite .pq::before,
+.is-lite .name .ln,
+.is-lite .pq-sx {
+  animation: none!important;
+}
+
+.is-lite .pq-sx {
+  -webkit-text-fill-color: currentColor;
+  color: rgba(255,255,255,.85);
+  background: none;
+}

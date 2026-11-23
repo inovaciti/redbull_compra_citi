@@ -1,0 +1,121 @@
+/* Troca de preço (src/ui/price-swap.js).
+   O preço anterior fica no ::before (texto vem de data-was) e o atual no .px-now.
+   Queda de preço (.is-cut): uma linha na cor do sabor risca o valor antigo, que sobe
+   e se dissolve enquanto o novo emerge e acende. Aumento (.is-rise): troca discreta. */
+
+.px {
+  position: relative;
+}
+
+.px-now {
+  display: inline-block;
+}
+
+.px::before {
+  content: attr(data-was);
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: 0 50%;
+}
+
+.price.px::before {
+  left: auto;
+  right: 0;
+  transform-origin: 100% 50%;
+}
+
+.px.is-cut::before {
+  background: linear-gradient(var(--g,#fff),var(--g,#fff)) 0 53%/0 1.5px no-repeat;
+  filter: drop-shadow(0 0 5px var(--g,transparent));
+  animation: pxStruck 1.45s cubic-bezier(.4,0,.2,1) both;
+}
+
+.px.is-cut .px-now {
+  animation: pxArrive .85s .5s cubic-bezier(.2,.9,.2,1) both,pxLit 1.7s .5s ease-out both;
+}
+
+.px.is-rise::before {
+  animation: pxFall .5s cubic-bezier(.4,0,.2,1) both;
+}
+
+.px.is-rise .px-now {
+  animation: pxDescend .55s cubic-bezier(.2,.9,.2,1) both;
+}
+
+@keyframes pxStruck {
+  0% {
+    opacity: 1;
+    background-size: 0 1.5px;
+    transform: none;
+    filter: drop-shadow(0 0 5px var(--g,transparent)) blur(0);
+  }
+  24% {
+    opacity: .68;
+    background-size: 100% 1.5px;
+  }
+  46% {
+    opacity: .68;
+    background-size: 100% 1.5px;
+    transform: none;
+    filter: drop-shadow(0 0 5px var(--g,transparent)) blur(0);
+  }
+  100% {
+    opacity: 0;
+    background-size: 100% 1.5px;
+    transform: translateY(-90%) scale(.88);
+    filter: drop-shadow(0 0 5px var(--g,transparent)) blur(5px);
+  }
+}
+
+@keyframes pxArrive {
+  0% {
+    opacity: 0;
+    transform: translateY(65%);
+    filter: blur(7px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+@keyframes pxLit {
+  0%,
+  100% {
+    text-shadow: 0 0 0 transparent;
+  }
+  30% {
+    text-shadow: 0 0 22px var(--g,transparent),0 0 3px var(--g,transparent);
+  }
+}
+
+@keyframes pxFall {
+  0% {
+    opacity: .7;
+    transform: none;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(45%);
+    filter: blur(3px);
+  }
+}
+
+@keyframes pxDescend {
+  0% {
+    opacity: 0;
+    transform: translateY(-55%);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}

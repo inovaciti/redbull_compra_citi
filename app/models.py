@@ -1,10 +1,9 @@
 from datetime import datetime
-from decimal import Decimal
 from enum import StrEnum
 import re
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
@@ -28,6 +27,20 @@ class PricingAudience(StrEnum):
     NON_MEMBER = "NON_MEMBER"
 
 
+MEMBER_EMAIL_DOMAIN = "citi.org.br"
+
+
+def pricing_audience_for_email(normalized_email: str) -> PricingAudience:
+    """Membro é quem paga com e-mail do domínio do CITi (exatamente, sem subdomínios).
+
+    Recebe o e-mail já normalizado por ``normalize_payer_email``.
+    """
+    domain = normalized_email.rpartition("@")[2]
+    if domain == MEMBER_EMAIL_DOMAIN:
+        return PricingAudience.MEMBER
+    return PricingAudience.NON_MEMBER
+
+
 class ReservationStatus(StrEnum):
     ACTIVE = "ACTIVE"
     RELEASED = "RELEASED"
@@ -44,6 +57,8 @@ class PaymentStatus(StrEnum):
 
 
 class PaymentProvider(StrEnum):
+    # MOCK é só histórico: a migration b7f2e6c9a104 gravou pagamentos antigos com esse valor e o
+    # tipo do banco o contém. Nenhum pagamento novo usa MOCK; o único provedor é o Mercado Pago.
     MOCK = "MOCK"
     MERCADOPAGO = "MERCADOPAGO"
 
@@ -65,15 +80,25 @@ class Product(BaseModel):
 
 
 class OrderItemInput(BaseModel):
+    # Campo desconhecido (preço, subtotal...) é recusado: o preço nunca vem do cliente.
+    model_config = ConfigDict(extra="forbid")
+
     product_id: str
     quantity: int = Field(ge=1, le=20)
 
 
 class OrderCreate(BaseModel):
+    # Campo desconhecido (total, público, preço...) é recusado: o preço nunca vem do cliente.
+    model_config = ConfigDict(extra="forbid")
+
     buyer_name: str = Field(min_length=2, max_length=80)
     payer_email: str = Field(min_length=3, max_length=254)
-    pricing_audience: PricingAudience
     items: list[OrderItemInput] = Field(min_length=1)
+
+    @property
+    def pricing_audience(self) -> PricingAudience:
+        # Definido pelo servidor a partir do e-mail; o cliente não escolhe a tabela.
+        return pricing_audience_for_email(self.payer_email)
 
     @field_validator("buyer_name")
     @classmethod
@@ -103,7 +128,6 @@ class PaymentData(BaseModel):
     copy_paste: str
     status: PaymentStatus
     expires_at: datetime | None = None
-    simulated: bool = True
 
 
 class Order(BaseModel):
@@ -113,39 +137,46 @@ class Order(BaseModel):
     total: float
     status: OrderStatus
     pricing_audience: PricingAudience
-    price_tier_id: int
     created_at: datetime
     paid_at: datetime | None = None
     payment: PaymentData
 
 
+class RememberedBuyer(BaseModel):
+    """Comprador lembrado neste aparelho, para a identificação da loja já vir preenchida.
+
+    Os limites do nome seguem os campos da loja: ``"Nome Sobrenome"`` cabe nos 80
+    caracteres de ``buyer_name``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    first_name: str = Field(min_length=1, max_length=40)
+    last_name: str = Field(min_length=1, max_length=39)
+    email: str = Field(min_length=3, max_length=254)
+
+    @field_validator("first_name", "last_name", mode="before")
+    @classmethod
+    def normalize_name(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        if re.search(r"[\x00-\x1f\x7f]", value):
+            raise ValueError("Nome com caracteres inválidos")
+        return " ".join(value.split())
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        return normalize_payer_email(value)
+
+
 class PriceTier(BaseModel):
-    id: int
+    """Faixa da tabela fixa de preços (``app/pricing.py``), só para exibição."""
+
     pricing_audience: PricingAudience
     min_quantity: int
     max_quantity: int | None
     unit_price: float
-
-
-class MercadoPagoWebhookData(BaseModel):
-    id: str | int
-
-
-class MercadoPagoWebhookPayload(BaseModel):
-    id: str | int
-    type: str = Field(default="order", max_length=120)
-    action: str = Field(default="order.updated", max_length=120)
-    data: MercadoPagoWebhookData
-
-
-class ManualReview(BaseModel):
-    id: UUID
-    order_id: UUID
-    buyer_name: str
-    reason: ManualReviewReason
-    details: str | None
-    created_at: datetime
-    resolved_at: datetime | None
 
 
 # ---------------------------------------------------------------------------
@@ -304,15 +335,7 @@ class StockSummary(BaseModel):
 
 
 class PriceTable(BaseModel):
-    """Faixas de preço ativas de um público, como exibidas no painel."""
+    """Faixas fixas de um público, como exibidas no painel (somente leitura)."""
 
     pricing_audience: PricingAudience
-    base_price: float | None = None
     tiers: list[PriceTier]
-
-
-class PriceTableUpdate(BaseModel):
-    """Novo preço base (1 lata); para membros, as demais faixas são derivadas dele."""
-
-    pricing_audience: PricingAudience
-    base_price: Decimal = Field(gt=Decimal("0"), le=Decimal("1000.00"), decimal_places=2)

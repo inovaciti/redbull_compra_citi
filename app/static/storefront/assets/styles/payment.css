@@ -1,0 +1,962 @@
+/* Pagamento: terceira etapa da gaveta (carrinho → identificação → Pix), no mesmo vocabulário das
+   duas primeiras (cart.css): ícone do cabeçalho que se desenha, botão do cabeçalho que troca de
+   papel no mesmo lugar, páginas que deslizam como navegação, vidro e brilho na cor do sabor.
+   Também: aviso flutuante da gaveta com texto variável e linha de sabor que esgotou. */
+
+/* altura: o QR precisa de espaço para ser lido de outra tela */
+.cart.is-pay {
+  height: clamp(548px,78dvh,720px);
+}
+
+/* ── cabeçalho: a pessoa dá lugar a uma cédula (com outra atrás) que se desenha ── */
+.cs-ico .cs-pm {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: scale(.55) rotate(-14deg);
+}
+
+.cart.is-pay .cs-ico .cs-cb:not(.cs-pm) {
+  opacity: 0;
+  transform: scale(.55) rotate(14deg);
+}
+
+.cart.is-pay .cs-ico .cs-pm {
+  opacity: 1;
+  transform: none;
+  transition: opacity .35s ease .08s,transform .75s cubic-bezier(.2,1.25,.3,1.2) .06s,color .6s ease;
+}
+
+.cs-pm .cash {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 34px;
+  height: 34px;
+  overflow: visible;
+}
+
+.cs-pm .cash-s {
+  stroke-dasharray: 1;
+}
+
+.cs-pm .cash-d circle {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+
+/* a cédula de trás, a da frente e a moeda se desenham em sequência; os pontos do canto surgem por último */
+.cart.is-pay .cs-pm .cash-s {
+  animation: csDraw .5s cubic-bezier(.4,0,.2,1) .12s both;
+}
+
+.cart.is-pay .cs-pm .cash-s:nth-child(2) {
+  animation-duration: .62s;
+  animation-delay: .2s;
+}
+
+.cart.is-pay .cs-pm .cash-s:nth-child(3) {
+  animation-duration: .5s;
+  animation-delay: .44s;
+}
+
+.cart.is-pay .cs-pm .cash-d circle {
+  animation: pqDot .5s cubic-bezier(.2,1.4,.3,1) .7s both;
+}
+
+.cart.is-pay .cs-pm .fl {
+  animation: csFlash .9s ease-out .2s both;
+}
+
+/* pago: o ícone acende em verde, a cor de "membro aplicado" */
+.cart.is-paid .cs-pm {
+  color: #9ff3c4;
+}
+
+/* ── botão do cabeçalho: no Pix, o "voltar" cancela a cobrança (em dois toques, vermelho como
+   o "esvaziar"); com a cobrança terminada ele sai e o X volta ── */
+.cs-slot>.cs-cnw {
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(.55) rotate(40deg);
+  pointer-events: none;
+  transition: opacity .28s ease,transform .55s cubic-bezier(.2,1.1,.3,1.2),visibility 0s .55s;
+}
+
+.cart.is-pay .cs-clrw:not(.cs-cnw),
+.cart.is-identify .cs-slot>.cs-cnw {
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(.55) rotate(-40deg);
+  pointer-events: none;
+  transition: opacity .28s ease,transform .55s cubic-bezier(.2,1.1,.3,1.2),visibility 0s .55s;
+}
+
+.cart.is-pay.is-locked .cs-slot>.cs-cnw {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  pointer-events: auto;
+  transition: opacity .35s ease .08s,transform .7s cubic-bezier(.2,1.2,.3,1.2) .06s,visibility 0s;
+}
+
+.cs-cn .ic-t {
+  margin-left: -2px;
+}
+
+/* Pix em aberto: sem X (a gaveta só sai cancelando); o botão de cancelar desliza para o lugar */
+.cart.is-open .cs-x {
+  transition: opacity .45s ease .42s,transform .8s cubic-bezier(.2,1.1,.3,1.2) .42s,margin .55s cubic-bezier(.2,.9,.2,1);
+}
+
+.cart.is-open.is-locked .cs-x {
+  margin-left: calc(-12px - var(--bh));
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(.55);
+  pointer-events: none;
+  transition: opacity .22s ease,transform .45s cubic-bezier(.4,0,.2,1),margin .55s cubic-bezier(.2,.9,.2,1),visibility 0s .45s;
+}
+
+/* ── páginas: o Pix entra pela direita, carrinho e identificação saem pela esquerda ── */
+.cs-pg-pay,
+.cart.is-pay .cs-pg-items,
+.cart.is-pay .cs-pg-id {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  filter: blur(6px);
+  transition: opacity .3s ease,transform .55s cubic-bezier(.4,0,.2,1),filter .3s ease,visibility 0s .55s;
+}
+
+.cs-pg-pay {
+  transform: translateX(32px) scale(.985);
+}
+
+.cart.is-pay .cs-pg-items,
+.cart.is-pay .cs-pg-id {
+  transform: translateX(-32px) scale(.985);
+}
+
+.cart.is-pay .cs-pg-pay {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+  filter: none;
+  transition: opacity .45s ease .08s,transform .7s cubic-bezier(.2,.9,.2,1) .04s,filter .45s ease .08s,visibility 0s;
+}
+
+.cs-pg-pay {
+  gap: 10px;
+}
+
+/* o rodapé do Pix vale pelo pedido criado, não pelo carrinho (que esvazia ao pagar) */
+.cart.is-empty .cs-f-pay {
+  display: flex;
+}
+
+/* Pix em aberto e tela final ocupam o mesmo espaço e trocam com um esmaecer */
+.pq-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+}
+
+.pq-live,
+.pqr {
+  grid-area: 1/1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pq-live {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px,1.9dvh,16px);
+  padding: 4px 2px 2px;
+  transition: opacity .35s ease,transform .6s cubic-bezier(.2,.9,.2,1),filter .35s ease,visibility 0s;
+}
+
+.cs-pg-pay.is-done .pq-live {
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(.94);
+  filter: blur(8px);
+  transition: opacity .3s ease,transform .5s cubic-bezier(.4,0,.2,1),filter .3s ease,visibility 0s .5s;
+}
+
+.pq-info {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── QR: moldura de vidro com luz branca, cartão branco (contraste de leitura) ── */
+.pq {
+  --qs: clamp(148px,min(60vw,28dvh),236px);
+  position: relative;
+  isolation: isolate;
+  flex: none;
+  width: var(--qs);
+  height: var(--qs);
+  padding: 9px;
+  border-radius: 30px;
+  background: linear-gradient(180deg,rgba(255,255,255,.17),rgba(255,255,255,.05));
+  box-shadow: inset 0 1.5px 1px rgba(255,255,255,.5),inset 0 -1.5px 1px rgba(255,255,255,.16),inset 0 0 0 1px rgba(255,255,255,.1),0 28px 54px -24px rgba(0,0,0,.95);
+  transition: opacity .35s ease,filter .35s ease;
+}
+
+.pq::before {
+  content: "";
+  position: absolute;
+  inset: -26px;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(closest-side,rgba(255,255,255,.2),transparent 72%);
+  animation: csHalo 7s ease-in-out infinite;
+  animation-play-state: paused;
+}
+
+.cart.is-open.is-pay .pq::before {
+  animation-play-state: running;
+}
+
+.pq-card {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 22px;
+  isolation: isolate;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.06),inset 0 -12px 20px -14px rgba(0,0,0,.16);
+}
+
+/* enquanto a imagem não chega: um brilho que passa pelo cartão */
+.pq-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg,transparent 30%,rgba(10,10,16,.07) 50%,transparent 70%) 0 0/250% 100%;
+  animation: pqShimmer 1.3s linear infinite;
+  animation-play-state: paused;
+  transition: opacity .3s ease;
+}
+
+/* o brilho de espera só corre com o Pix na tela */
+.cart.is-open.is-pay .pq-card::before {
+  animation-play-state: running;
+}
+
+.pq-card.is-ready::before,
+.pq-card.is-broken::before {
+  opacity: 0;
+  animation: none;
+}
+
+.pq-img {
+  --rv: 0%;
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-mask: radial-gradient(circle at 50% 50%,#000 var(--rv),transparent calc(var(--rv) + 16%));
+  mask: radial-gradient(circle at 50% 50%,#000 var(--rv),transparent calc(var(--rv) + 16%));
+}
+
+/* o QR se materializa do centro para as bordas, uma vez */
+.cart.is-pay .pq-card.is-ready .pq-img {
+  opacity: 1;
+  animation: pqReveal 1.1s cubic-bezier(.2,.75,.2,1) .25s both;
+}
+
+.pq-card.is-broken .pq-img {
+  display: none;
+}
+
+.pq-card.is-broken::after {
+  content: "Use o Pix Copia e Cola";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  text-align: center;
+  font: 500 13px/1.3 Geist,system-ui,sans-serif;
+  color: rgba(10,10,16,.6);
+}
+
+/* cancelando: o QR apaga, não pode mais ser pago */
+.cs-pg-pay.is-cancelling .pq {
+  opacity: .4;
+  filter: blur(2px) saturate(.5);
+}
+
+/* o foco do teclado nesta etapa é branco, como todo o resto dela */
+.cs-pg-pay :focus-visible {
+  outline-color: rgba(255,255,255,.9);
+}
+
+/* as peças entram em sequência quando a etapa abre (só a entrada: depois valem os estilos normais) */
+.cart.is-pay .pq,
+.cart.is-pay .pq-st,
+.cart.is-pay .pq-cp {
+  animation: pqIn .85s cubic-bezier(.2,.9,.2,1) .16s backwards;
+}
+
+.cart.is-pay .pq-st {
+  animation-delay: .27s;
+}
+
+.cart.is-pay .pq-cp {
+  animation-delay: .36s;
+}
+
+/* ── situação: relógio de ponteiros, tempo restante e o que está acontecendo ── */
+.pq-st {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  max-width: 100%;
+  height: 52px;
+  padding: 0 20px 0 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+  font: 500 13px/1 Geist,system-ui,sans-serif;
+  letter-spacing: -.005em;
+  color: rgba(245,245,247,.86);
+  background: linear-gradient(180deg,rgba(255,255,255,.11),rgba(255,255,255,.035));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.26),inset 0 -10px 18px -14px rgba(255,255,255,.16),inset 0 0 0 1px rgba(255,255,255,.08),0 14px 26px -16px rgba(0,0,0,.9);
+}
+
+.pk {
+  flex: none;
+  display: grid;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,.45));
+}
+
+.pk-svg {
+  display: block;
+  overflow: visible;
+}
+
+.pk-rim {
+  stroke: rgba(255,255,255,.92);
+  stroke-width: 1.4;
+}
+
+.pk-t {
+  stroke: rgba(255,255,255,.46);
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+
+.pk-t.is-major {
+  stroke: rgba(255,255,255,.95);
+  stroke-width: 1.7;
+}
+
+.pk-h {
+  filter: drop-shadow(0 1px 1.2px rgba(0,0,0,.6));
+}
+
+.pk-hm,
+.pk-hs {
+  fill: none;
+  stroke: #fff;
+  stroke-linecap: round;
+}
+
+.pk-hm {
+  stroke-width: 2.6;
+}
+
+.pk-hs {
+  stroke-width: 1.4;
+}
+
+.pk-hd,
+.pk-cap {
+  fill: #fff;
+}
+
+.pk-pin {
+  fill: #17171c;
+}
+
+.pq-tm {
+  min-width: 5ch;
+  font: 500 17px/1 "Geist Mono",ui-monospace,monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.03em;
+  color: #fff;
+  text-shadow: 0 1px 12px rgba(0,0,0,.45);
+}
+
+.pq-sep {
+  width: 1px;
+  height: 20px;
+  background: linear-gradient(180deg,transparent,rgba(255,255,255,.4),transparent);
+}
+
+/* a situação não leva ponto nem cor: um brilho branco corre pelas letras, como quem espera */
+.pq-sx {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  background: linear-gradient(100deg,rgba(255,255,255,.5) 40%,#fff 50%,rgba(255,255,255,.5) 60%) 100% 0/250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: pqSheen 2.6s linear infinite;
+}
+
+/* sem resposta do servidor (segue tentando) ou prazo zerado esperando a confirmação */
+.pq-st.is-checking .pq-sx {
+  animation-duration: 1.3s;
+}
+
+/* último minuto: o aro do relógio respira (os dígitos não têm efeito nenhum) */
+.pq-st.is-ending .pk-rim {
+  animation: pqBeat 1s ease-in-out infinite;
+}
+
+/* cobrança sem prazo informado: só a situação */
+.pq-st.is-timeless .pk,
+.pq-st.is-timeless .pq-tm,
+.pq-st.is-timeless .pq-sep {
+  display: none;
+}
+
+.pq-st.is-timeless {
+  padding-left: 20px;
+}
+
+/* ── código copia e cola: um campo no molde dos da identificação, com rótulo e botão de copiar;
+   toque e segure no código seleciona tudo ── */
+.pq-cp {
+  width: min(100%,340px);
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 9px 0 18px;
+  border-radius: 20px;
+  background: linear-gradient(180deg,rgba(255,255,255,.085),rgba(255,255,255,.03));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.2),inset 0 0 0 1px rgba(255,255,255,.075),inset 0 -12px 20px -16px rgba(255,255,255,.1),0 12px 24px -16px rgba(0,0,0,.8);
+  transition: background .3s ease,box-shadow .3s ease;
+}
+
+.pq-cp.is-confirmed {
+  background: linear-gradient(180deg,rgba(255,255,255,.15),rgba(255,255,255,.06));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.34),inset 0 0 0 1.5px rgba(255,255,255,.42),0 12px 24px -16px rgba(0,0,0,.8);
+}
+
+.pq-cx {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pq-cl {
+  font: 400 11.5px/1 Geist,system-ui,sans-serif;
+  letter-spacing: -.005em;
+  color: rgba(245,245,247,.55);
+}
+
+.pq-code {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  font: 500 12.5px/1.15 "Geist Mono",ui-monospace,monospace;
+  letter-spacing: -.01em;
+  color: rgba(255,255,255,.92);
+  -webkit-mask: linear-gradient(90deg,#000 80%,transparent);
+  mask: linear-gradient(90deg,#000 80%,transparent);
+  -webkit-user-select: all;
+  user-select: all;
+  cursor: text;
+}
+
+.pq-code::selection {
+  color: #000;
+  background: rgba(255,255,255,.8);
+}
+
+.pq-code.is-attention {
+  animation: msgNudge .6s cubic-bezier(.2,1,.3,1.1) both;
+}
+
+.pq-cb {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+  background: linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.06));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.42),inset 0 0 0 1px rgba(255,255,255,.1),0 8px 16px -8px rgba(0,0,0,.7);
+  transition: transform .3s cubic-bezier(.2,.9,.2,1.3),background .25s ease;
+}
+
+.pq-cb:active {
+  transform: scale(.88);
+}
+
+.pq-ci {
+  display: grid;
+}
+
+.pq-ci svg {
+  grid-area: 1/1;
+  transition: opacity .3s ease,transform .5s cubic-bezier(.2,1,.3,1.2);
+}
+
+.pq-ci svg:last-child {
+  opacity: 0;
+  transform: scale(.5) rotate(-30deg);
+}
+
+.pq-cp.is-confirmed .pq-ci svg:first-child {
+  opacity: 0;
+  transform: scale(.5) rotate(30deg);
+}
+
+.pq-cp.is-confirmed .pq-ci svg:last-child {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── botão principal: vidro neutro (sem o tom do sabor nem o azul do aro) ── */
+.cs-pa {
+  --t1: #6a6a72;
+  --t2: #8e8e98;
+  --t3: #55555d;
+}
+
+.cs-pa .lg-back {
+  background: radial-gradient(58% 160% at 50% 50%,rgba(255,255,255,.13),rgba(255,255,255,.035) 58%,transparent 100%),linear-gradient(180deg,transparent 7%,rgba(255,255,255,.2) 13%,transparent 25%),linear-gradient(104deg,transparent 12%,rgba(255,255,255,.13) 22%,transparent 31%,transparent 62%,rgba(255,255,255,.1) 72%,transparent 80%);
+}
+
+.cs-pa::after {
+  background: conic-gradient(from 200deg,rgba(255,255,255,.7),rgba(255,255,255,0) 18%,rgba(255,255,255,.36) 38%,rgba(255,255,255,0) 54%,rgba(255,255,255,.55) 76%,rgba(255,255,255,0) 90%,rgba(255,255,255,.7));
+}
+
+/* ── botão principal: copiar (ícone de cópia) → sair da tela final (seta) ── */
+.pa-ic {
+  display: grid;
+}
+
+.pa-ic svg {
+  grid-area: 1/1;
+  transition: opacity .3s ease,transform .5s cubic-bezier(.2,1,.3,1.2);
+}
+
+.pa-ic svg:last-child,
+.cs-pg-pay.is-done .pa-ic svg:first-child {
+  opacity: 0;
+  transform: scale(.6);
+}
+
+.cs-pg-pay.is-done .pa-ic svg:last-child {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── tela final: orbe de vidro no tom do resultado, ícone que se desenha, título e detalhe ── */
+.pqr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px 6px;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .25s ease,visibility 0s .25s;
+}
+
+.cs-pg-pay.is-done .pqr {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity .45s ease .12s,visibility 0s;
+}
+
+.pqr-in {
+  --tone: #6fe3a4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.pqr-in.is-expired {
+  --tone: #ffb562;
+}
+
+.pqr-in.is-failed {
+  --tone: #ff7d72;
+}
+
+.pqr-orb {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  width: 104px;
+  height: 104px;
+  margin-bottom: 16px;
+  border-radius: 50%;
+  color: #fff;
+  background: radial-gradient(closest-side at 50% 38%,color-mix(in srgb,var(--tone) 42%,rgba(255,255,255,.12)),color-mix(in srgb,var(--tone) 16%,rgba(255,255,255,.04)) 70%,rgba(255,255,255,.02));
+  box-shadow: inset 0 1.5px 1px rgba(255,255,255,.55),inset 0 -2px 2px rgba(255,255,255,.14),inset 0 14px 24px -14px rgba(255,255,255,.24),inset 0 0 0 1px rgba(255,255,255,.12),0 22px 44px -18px rgba(0,0,0,.85),0 0 64px -16px color-mix(in srgb,var(--tone) 75%,transparent);
+  animation: csPop .95s cubic-bezier(.2,1.25,.3,1.2) .1s both,csBreathe 7s ease-in-out 1.3s infinite;
+}
+
+.pqr-orb::before {
+  content: "";
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  top: 5%;
+  height: 30%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,0));
+}
+
+.pqr-orb::after {
+  content: "";
+  position: absolute;
+  inset: -22px;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(closest-side,color-mix(in srgb,var(--tone) 38%,transparent),transparent 72%);
+  animation: csHalo 7s ease-in-out infinite;
+}
+
+.pqr-ic {
+  overflow: visible;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.4));
+}
+
+.pqr-dr {
+  stroke-dasharray: 1;
+  animation: csDraw .7s cubic-bezier(.65,0,.35,1) .45s both;
+}
+
+.pqr-t {
+  font: 600 21px/1.2 Geist,system-ui,sans-serif;
+  letter-spacing: -.025em;
+  color: #fff;
+  text-shadow: 0 2px 18px rgba(0,0,0,.45);
+  animation: csTx .8s cubic-bezier(.2,.9,.2,1) .35s both;
+}
+
+.pqr-s {
+  max-width: 34ch;
+  font: 400 13.5px/1.45 Geist,system-ui,sans-serif;
+  font-style: normal;
+  color: rgba(245,245,247,.62);
+  text-wrap: balance;
+  animation: csTx .8s cubic-bezier(.2,.9,.2,1) .45s both;
+}
+
+.pqr-li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 14px;
+  max-width: 36ch;
+  margin-top: 4px;
+  font: 400 13px/1.3 Geist,system-ui,sans-serif;
+  color: rgba(245,245,247,.82);
+  animation: csTx .8s cubic-bezier(.2,.9,.2,1) .5s both;
+}
+
+.pqr-li b {
+  font: 500 13px/1 "Geist Mono",ui-monospace,monospace;
+  color: color-mix(in srgb,var(--tone) 70%,#fff);
+}
+
+.pqr-n {
+  margin-top: 10px;
+  padding: 9px 15px;
+  border-radius: 999px;
+  font: 400 12.5px/1 Geist,system-ui,sans-serif;
+  color: rgba(245,245,247,.6);
+  background: linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.035));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22),inset 0 0 0 1px rgba(255,255,255,.08);
+  animation: csTx .8s cubic-bezier(.2,.9,.2,1) .55s both;
+}
+
+.pqr-n b {
+  font: 500 13px/1 "Geist Mono",ui-monospace,monospace;
+  letter-spacing: .03em;
+  color: #fff;
+}
+
+/* ── carrinho: sabor que esgotou enquanto o Pix estava aberto (preto e branco, fora do total) ── */
+.cs-it.is-gone {
+  animation: msgIn .6s cubic-bezier(.2,1,.3,1.1) both;
+}
+
+.cs-it.is-gone::before {
+  background: none;
+}
+
+.cs-it.is-gone .cs-ph img {
+  filter: grayscale(1) brightness(.72) contrast(.95);
+}
+
+.cs-it.is-gone .cs-nm {
+  color: rgba(245,245,247,.5);
+}
+
+.cs-it.is-gone .cs-un {
+  font-family: Geist,system-ui,sans-serif;
+  font-weight: 500;
+  color: #ff9d93;
+}
+
+/* aviso flutuante da gaveta: textos variados, quebra em telas estreitas */
+.cs-note {
+  /* centrado com left: 50%: sem largura própria ele encolheria até a metade da gaveta */
+  width: max-content;
+  max-width: calc(100% - 24px);
+  white-space: normal;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.cs-note svg {
+  flex: none;
+}
+
+@media (hover: hover) {
+  .pq-cb:hover {
+    background: linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,.1));
+  }
+}
+
+/* celular deitado: QR à esquerda, situação e código à direita; o aviso fica dentro da gaveta,
+   que já ocupa a altura toda */
+@media (orientation: landscape) and (max-height: 560px) and (max-width: 1023.98px) {
+  .cart.is-pay {
+    height: auto;
+  }
+
+  .pq-live {
+    flex-direction: row;
+    gap: 18px;
+  }
+
+  .pq {
+    --qs: clamp(118px,calc(100dvh - 232px),190px);
+    padding: 7px;
+    border-radius: 24px;
+  }
+
+  .pq-card {
+    border-radius: 17px;
+  }
+
+  .pq-info {
+    flex: 1;
+    width: auto;
+    align-items: flex-start;
+  }
+
+  .pqr-orb {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 8px;
+  }
+
+  .pqr-ic {
+    width: 42px;
+    height: 42px;
+  }
+
+  .cs-note {
+    top: 12px;
+    bottom: auto;
+    z-index: 5;
+  }
+}
+
+@media (min-width: 1024px) {
+  .cart.is-pay {
+    height: clamp(600px,74dvh,740px);
+  }
+
+  .cs-pm .cash {
+    width: 36px;
+    height: 36px;
+  }
+
+  .pq {
+    --qs: clamp(190px,31dvh,272px);
+    padding: 10px;
+    border-radius: 32px;
+  }
+
+  .pq-st {
+    height: 60px;
+    gap: 13px;
+    padding-left: 8px;
+    font-size: 13.5px;
+  }
+
+  .pk-svg {
+    width: 46px;
+    height: 46px;
+  }
+
+  .pq-tm {
+    font-size: 18px;
+  }
+
+  .pq-cp {
+    height: 60px;
+  }
+
+  .pq-code {
+    font-size: 13px;
+  }
+
+  .pqr-t {
+    font-size: 23px;
+  }
+
+  .pqr-s {
+    font-size: 14px;
+  }
+}
+
+/* celular estreito: o relógio e os espaços encolhem para a situação caber numa linha */
+@media (max-width: 359.98px) {
+  .pq-st {
+    gap: 9px;
+    height: 48px;
+    padding-right: 16px;
+    font-size: 12.5px;
+  }
+
+  .pk-svg {
+    width: 34px;
+    height: 34px;
+  }
+
+  .pq-tm {
+    font-size: 15.5px;
+  }
+
+  .pq-sep {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pq::before,
+  .pq-card::before,
+  .pq-sx,
+  .pq-st .pk-rim,
+  .pqr-orb,
+  .pqr-orb::after {
+    animation: none!important;
+  }
+
+  .pq-sx {
+    -webkit-text-fill-color: currentColor;
+    color: rgba(255,255,255,.85);
+    background: none;
+  }
+}
+
+@property --rv {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+@keyframes pqReveal {
+  from {
+    --rv: 0%;
+  }
+  to {
+    --rv: 130%;
+  }
+}
+
+@keyframes pqShimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+@keyframes pqSheen {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+@keyframes pqBeat {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .55;
+  }
+}
+
+@keyframes pqIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(.96);
+    filter: blur(6px);
+  }
+}
+
+@keyframes pqDot {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

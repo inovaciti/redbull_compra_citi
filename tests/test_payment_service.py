@@ -6,14 +6,13 @@ import pytest
 from sqlalchemy import delete, select, update
 
 from app.db.base import AsyncSessionLocal, engine
-from app.db.models import OrderORM, PaymentORM, PriceTierORM, ProductORM
+from app.db.models import OrderORM, PaymentORM, ProductORM
 from app.models import (
     OrderCreate,
     OrderItemInput,
     OrderStatus,
     PaymentProvider,
     PaymentStatus,
-    PricingAudience,
     ReservationStatus,
 )
 from app.payment_service import (
@@ -32,7 +31,6 @@ INITIAL_STOCK = {"original": 24, "tropical": 18, "melancia": 16}
 async def reset_database() -> None:
     async with AsyncSessionLocal() as session, session.begin():
         await session.execute(delete(OrderORM))
-        await session.execute(update(PriceTierORM).values(active=True))
         for product_id, stock in INITIAL_STOCK.items():
             await session.execute(
                 update(ProductORM)
@@ -45,14 +43,13 @@ async def reset_database() -> None:
 def order_payload() -> OrderCreate:
     return OrderCreate(
         buyer_name="Teste orquestração",
-        payer_email="comprador@example.com",
-        pricing_audience=PricingAudience.MEMBER,
+        payer_email="comprador@citi.org.br",
         items=[OrderItemInput(product_id="original", quantity=2)],
     )
 
 
 class RecordingProvider:
-    provider_name = "mock"
+    provider_name = "mercadopago"
 
     def __init__(self, db=None, error: PaymentProviderError | None = None) -> None:
         self.db = db
@@ -129,7 +126,7 @@ def test_order_orchestration_happy_path_commits_reservation_before_provider():
     assert calls[0]["transaction_open"] is False
     assert calls[0]["external_reference"] == str(order.id)
     assert calls[0]["idempotency_key"] == payment_idempotency_key(order.id)
-    assert payment.provider == PaymentProvider.MOCK
+    assert payment.provider == PaymentProvider.MERCADOPAGO
     assert payment.status == PaymentStatus.WAITING_PAYMENT
     assert payment.provider_order_id == f"provider-order-{order.id}"
     assert payment.provider_payment_id == f"provider-payment-{order.id}"
@@ -215,7 +212,7 @@ class CrashOnceIdempotentProvider(RecordingProvider):
         idempotency_key: str,
         payer_email: str,
     ) -> ChargeResult:
-        assert payer_email == "comprador@example.com"
+        assert payer_email == "comprador@citi.org.br"
         charge = self.unique_charges.setdefault(
             idempotency_key,
             ChargeResult(

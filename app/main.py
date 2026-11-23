@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import mimetypes
+import os
 from contextlib import asynccontextmanager
 from io import BytesIO
 from pathlib import Path
@@ -7,7 +9,7 @@ from uuid import UUID
 
 import qrcode
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from qrcode.image.svg import SvgPathImage
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,21 +36,53 @@ from .payment_service import (
     expire_due_payments,
     process_mercadopago_payment,
 )
+from .buyer_memory import router as buyer_memory_router
+from .pricing import price_tiers
 from .stock_panel import router as stock_panel_router
+from .storefront_assets import render_store_html, warm_gzip_cache
+from .storefront_assets import router as storefront_assets_router
 from .store import store
 
 BASE_DIR = Path(__file__).resolve().parent
+# Tipos dos arquivos 3D da geladeira (cooler/latas/), que o Python não conhece.
+mimetypes.add_type("model/gltf-binary", ".glb")
+mimetypes.add_type("image/vnd.radiance", ".hdr")
+# A loja não usa nada inline nem de outros domínios. ``img-src data: blob:``
+# é exigido pelo vidro líquido, que gera os mapas de refração como imagens, e
+# ``connect-src blob:`` pelo carregador das latas 3D, que lê as texturas
+# embutidas nos GLBs a partir de URLs blob criadas na própria página.
+STORE_PAGE_HEADERS = {
+    "Cache-Control": "no-store",
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "same-origin",
+    "Content-Security-Policy": (
+        "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; "
+        "img-src 'self' data: blob:; connect-src 'self' blob:; object-src 'none'; "
+        "frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+    ),
+}
+# Logs do app (INFO por padrão, LOG_LEVEL muda): sem isto só avisos e erros apareceriam, porque o
+# uvicorn configura apenas os próprios loggers. Nenhum log leva token, assinatura, QR, código Pix
+# ou e-mail completo.
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO",
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+# o cliente HTTP registraria cada chamada ao Mercado Pago (a reconciliação consulta a cada ciclo)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
-async def _expiration_loop(interval_seconds: int, payment_provider) -> None:
+async def _expiration_loop(app: FastAPI, interval_seconds: int) -> None:
     while True:
         await asyncio.sleep(interval_seconds)
         try:
             async with AsyncSessionLocal() as db:
                 expired = await expire_due_payments(
                     db,
-                    provider=payment_provider,
+                    provider=app.state.payment_provider,
                 )
             if expired:
                 logger.info("Cobranças expiradas e reservas liberadas: %s", expired)
@@ -60,44 +94,62 @@ async def _expiration_loop(interval_seconds: int, payment_provider) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    payment_provider = create_payment_provider(settings)
-    app.state.payment_provider = payment_provider
-    app.state.payment_settings = settings
+    # O provedor é o Mercado Pago, montado (e validado) aqui. Um provedor já posto em
+    # ``app.state`` antes da subida é respeitado: é assim que os testes injetam o deles.
+    owns_provider = getattr(app.state, "payment_provider", None) is None
+    if owns_provider:
+        app.state.payment_provider = create_payment_provider(settings)
+    if getattr(app.state, "payment_settings", None) is None:
+        app.state.payment_settings = settings
+    # cópias gzip dos arquivos da loja, em segundo plano (a primeira visita já sai comprimida)
+    gzip_task = asyncio.create_task(asyncio.to_thread(warm_gzip_cache), name="storefront-gzip-warm")
     expiration_task = asyncio.create_task(
-        _expiration_loop(
-            settings.payment_expiration_check_interval,
-            payment_provider,
-        ),
+        _expiration_loop(app, settings.payment_expiration_check_interval),
         name="payment-expiration-loop",
     )
     try:
         yield
     finally:
+        gzip_task.cancel()
         expiration_task.cancel()
         try:
             await expiration_task
         except asyncio.CancelledError:
             pass
-        await payment_provider.aclose()
+        if owns_provider:
+            await app.state.payment_provider.aclose()
+            app.state.payment_provider = None
 
 
-app = FastAPI(title="Red Bull PDV — MVP", version="0.1.0", lifespan=lifespan)
+# Documentação interativa da API (/docs, /redoc, /openapi.json) só quando pedida (API_DOCS=1):
+# em produção ela não fica exposta.
+_API_DOCS = settings.api_docs
+app = FastAPI(
+    title="Red Bull PDV",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/docs" if _API_DOCS else None,
+    redoc_url="/redoc" if _API_DOCS else None,
+    openapi_url="/openapi.json" if _API_DOCS else None,
+)
+# a rota versionada da loja vem antes da montagem de /static, que capturaria /static/v/...
+app.include_router(storefront_assets_router)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(stock_panel_router)
+app.include_router(buyer_memory_router)
 
 
 @app.get("/", include_in_schema=False)
-def frontend() -> FileResponse:
-    return FileResponse(BASE_DIR / "static" / "index.html")
+def store_page() -> HTMLResponse:
+    # O HTML fica fora de /static para só existir com estes cabeçalhos; ele aponta
+    # para a versão atual dos arquivos da loja (cache longo, ver storefront_assets).
+    return HTMLResponse(render_store_html(), headers=STORE_PAGE_HEADERS)
 
 
 @app.get("/api/health")
 def health() -> dict:
-    return {
-        "status": "ok",
-        "storage": "postgresql",
-        "payment": settings.payment_provider,
-    }
+    """Verificação de vida do processo (usada pelo Railway e pelos testes de interface)."""
+    return {"status": "ok"}
 
 
 @app.get("/api/products", response_model=list[Product])
@@ -106,11 +158,9 @@ async def products(db: AsyncSession = Depends(get_db)) -> list[Product]:
 
 
 @app.get("/api/price-tiers", response_model=list[PriceTier])
-async def price_tiers(
-    pricing_audience: PricingAudience,
-    db: AsyncSession = Depends(get_db),
-) -> list[PriceTier]:
-    return await store.list_price_tiers(db, pricing_audience)
+async def list_price_tiers(pricing_audience: PricingAudience) -> list[PriceTier]:
+    # Tabela fixa (app/pricing.py); só para exibição: o pedido é precificado no servidor.
+    return price_tiers(pricing_audience)
 
 
 @app.post("/api/orders", response_model=Order, status_code=201)
@@ -278,25 +328,3 @@ async def mercadopago_webhook(
             else None
         ),
     }
-
-
-@app.post("/api/mock/pay/{txid}")
-async def mock_payment(
-    txid: str,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    """Somente MVP: simula o gateway chamando o webhook válido."""
-    if request.app.state.payment_settings.payment_provider != "mock":
-        raise HTTPException(404, "Rota disponível somente no modo mock")
-    order, processed = await store.confirm_payment(db, txid)
-    return {"processed": processed, "order_id": str(order.id), "status": order.status}
-
-
-@app.get("/api/mock/qr/{txid}")
-def mock_qr(txid: str, request: Request) -> Response:
-    if request.app.state.payment_settings.payment_provider != "mock":
-        raise HTTPException(404, "Rota disponível somente no modo mock")
-    safe = txid.replace("<", "").replace(">", "")
-    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240"><rect width="240" height="240" rx="18" fill="white"/><g fill="#071d49"><rect x="24" y="24" width="64" height="64"/><rect x="152" y="24" width="64" height="64"/><rect x="24" y="152" width="64" height="64"/><path d="M110 24h20v42h-20zM108 86h52v20h-32v22h-20zM96 142h24v22h20v52H98v-22h20v-30H96zM154 128h62v20h-42v22h42v46h-22v-24h-42v-42h22z"/></g><text x="120" y="122" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#e21b2d">PIX MVP</text><title>{safe}</title></svg>'''
-    return Response(svg, media_type="image/svg+xml")

@@ -11,7 +11,6 @@ import pytest
 from app.config import Settings
 from app.payments import (
     MercadoPagoProvider,
-    MockPaymentProvider,
     PaymentProviderError,
     create_payment_provider,
     verify_mercadopago_signature,
@@ -26,7 +25,6 @@ def mercadopago_settings(
     return Settings(
         mercadopago_access_token=access_token,
         mercadopago_webhook_secret=webhook_secret,
-        payment_provider="mercadopago",
         charge_expires_in=1800,
     )
 
@@ -287,32 +285,15 @@ def test_factory_rejects_missing_mercadopago_credentials():
     assert "MERCADOPAGO_WEBHOOK_SECRET" in str(exc_info.value)
 
 
-def test_factory_only_accepts_mock_and_mercadopago():
-    settings = Settings(
-        mercadopago_access_token="",
-        mercadopago_webhook_secret="",
-        payment_provider="openpix",
-        charge_expires_in=1800,
-    )
-    with pytest.raises(RuntimeError, match="PAYMENT_PROVIDER"):
-        create_payment_provider(settings)
-
-    mock_settings = Settings(
-        mercadopago_access_token="",
-        mercadopago_webhook_secret="",
-        payment_provider="mock",
-        charge_expires_in=1800,
-    )
-    assert isinstance(create_payment_provider(mock_settings), MockPaymentProvider)
+def test_factory_always_builds_mercadopago():
+    assert isinstance(create_payment_provider(mercadopago_settings()), MercadoPagoProvider)
 
 
-def test_factory_does_not_fallback_to_mock_when_provider_is_missing(monkeypatch):
-    monkeypatch.delenv("PAYMENT_PROVIDER", raising=False)
-    settings = Settings.from_env()
-
-    assert settings.payment_provider == ""
-    with pytest.raises(RuntimeError, match="PAYMENT_PROVIDER"):
-        create_payment_provider(settings)
+def test_settings_from_env_require_mercadopago_credentials(monkeypatch):
+    monkeypatch.setenv("MERCADOPAGO_ACCESS_TOKEN", "")
+    monkeypatch.setenv("MERCADOPAGO_WEBHOOK_SECRET", "")
+    with pytest.raises(RuntimeError, match="MERCADOPAGO_ACCESS_TOKEN"):
+        create_payment_provider(Settings.from_env())
 
 
 def test_get_order_queries_by_order_id_and_maps_accredited_payment():

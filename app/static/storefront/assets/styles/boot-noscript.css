@@ -1,0 +1,12 @@
+/* Sem JavaScript o loading nunca terminaria: some, e a página volta ao normal. */
+.boot {
+  display: none;
+}
+
+html.is-booting {
+  overflow: auto;
+}
+
+html.is-booting .app {
+  visibility: visible;
+}

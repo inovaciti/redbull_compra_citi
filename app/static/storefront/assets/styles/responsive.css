@@ -1,0 +1,80 @@
+/* Ajustes de tela além dos dois layouts do design (celular em pé e desktop a partir de 1024 px). */
+
+/* Celular deitado (tela larga e baixa, abaixo do layout de desktop).
+   O painel de compra vai para a direita, ao lado da geladeira, e a gaveta do
+   carrinho ocupa a altura toda. Sem isto, o painel ficaria abaixo da dobra. */
+
+@media (orientation: landscape) and (max-height: 560px) and (max-width: 1023.98px) {
+  .app {
+    min-height: 0;
+  }
+
+  .brand {
+    left: max(20px,env(safe-area-inset-left));
+  }
+
+  .dock {
+    --bh: 48px;
+    left: auto;
+    top: max(8px,env(safe-area-inset-top));
+    right: max(8px,env(safe-area-inset-right));
+    bottom: max(8px,env(safe-area-inset-bottom));
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  .dock .dfab {
+    margin-bottom: 6px;
+  }
+
+  .shop {
+    width: clamp(300px,46vw,400px);
+    align-self: stretch;
+    padding: 8px 12px 10px;
+    gap: 8px;
+  }
+
+  .cv {
+    --ch: min(84cqh,300px);
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 80px;
+    margin: 0 -12px;
+  }
+
+  .name {
+    --cap: 26px;
+  }
+
+  .cart {
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    top: max(8px,env(safe-area-inset-top));
+    bottom: max(8px,env(safe-area-inset-bottom));
+    width: min(560px,calc(100% - 16px));
+    height: auto;
+    border-radius: 28px;
+  }
+}
+
+/* Telas grandes (Full HD em diante): painel, topo e gaveta crescem junto com a tela.
+   A cena 3D lê a largura real do painel (insets em storefront.js). */
+@media (min-width: 1800px) and (min-height: 900px) {
+  .shop {
+    width: clamp(640px,32vw,860px);
+  }
+
+  .name {
+    --cap: 78px;
+  }
+
+  .logo-box {
+    height: 46px;
+  }
+
+  .cart {
+    width: min(760px,calc(100% - 48px));
+  }
+}

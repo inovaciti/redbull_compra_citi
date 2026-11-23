@@ -53,7 +53,11 @@ TEST_DATABASE_URL = validate_test_database_url(
 # app.db.base continua lendo DATABASE_URL; somente o processo do Pytest recebe
 # a URL isolada antes de importar qualquer módulo da aplicação.
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
-os.environ["PAYMENT_PROVIDER"] = "mock"
+# O app só fala com o Mercado Pago e exige as credenciais para subir; nos testes ninguém
+# chega lá: o provedor de verdade é trocado pelo falso (tests/fakes.py) antes de cada teste.
+os.environ["MERCADOPAGO_ACCESS_TOKEN"] = "token-de-teste"
+os.environ["MERCADOPAGO_WEBHOOK_SECRET"] = "segredo-do-webhook-de-teste"
+os.environ["PAYMENT_EXPIRATION_CHECK_INTERVAL"] = "3600"
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -61,3 +65,17 @@ def migrate_test_database() -> None:
     config = Config("alembic.ini")
     config.set_main_option("sqlalchemy.url", TEST_DATABASE_URL)
     command.upgrade(config, "head")
+
+
+@pytest.fixture(autouse=True)
+def pix_provider():
+    """Provedor Pix falso no app (cada teste com o seu); o lifespan do app usa o que já estiver lá."""
+    from app.main import app
+    from tests.fakes import FakePixProvider, fake_settings
+
+    provider = FakePixProvider()
+    app.state.payment_provider = provider
+    app.state.payment_settings = fake_settings()
+    yield provider
+    app.state.payment_provider = None
+    app.state.payment_settings = None

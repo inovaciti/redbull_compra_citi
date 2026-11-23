@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .db.base import get_db
 from .models import (
     PriceTable,
-    PriceTableUpdate,
+    PricingAudience,
     StaffLogin,
     StaffUser,
     StockMovement,
@@ -23,7 +23,7 @@ from .models import (
     StockProduct,
     StockSummary,
 )
-from .price_service import list_price_tables, update_price_table
+from .pricing import price_tiers
 from .staff_auth import (
     SESSION_COOKIE_NAME,
     StaffPrincipal,
@@ -163,23 +163,13 @@ async def summary(
 async def price_tables(
     response: Response,
     _: StaffPrincipal = Depends(require_staff),
-    db: AsyncSession = Depends(get_db),
 ) -> list[PriceTable]:
+    # Tabela fixa (app/pricing.py): o painel só exibe, ninguém altera preço.
     response.headers.update(NO_STORE)
-    return await list_price_tables(db)
-
-
-@api.put(
-    "/precos",
-    response_model=PriceTable,
-    dependencies=[Depends(require_panel_header)],
-)
-async def set_price_table(
-    payload: PriceTableUpdate,
-    staff: StaffPrincipal = Depends(require_staff),
-    db: AsyncSession = Depends(get_db),
-) -> PriceTable:
-    return await update_price_table(db, payload, staff.to_model())
+    return [
+        PriceTable(pricing_audience=audience, tiers=price_tiers(audience))
+        for audience in PricingAudience
+    ]
 
 
 router.include_router(api)
