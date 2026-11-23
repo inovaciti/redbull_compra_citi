@@ -35,6 +35,7 @@ from .payment_service import (
     expire_due_payments,
     process_mercadopago_payment,
 )
+from .pricing import price_tiers
 from .stock_panel import router as stock_panel_router
 from .store import store
 
@@ -127,11 +128,9 @@ async def products(db: AsyncSession = Depends(get_db)) -> list[Product]:
 
 
 @app.get("/api/price-tiers", response_model=list[PriceTier])
-async def price_tiers(
-    pricing_audience: PricingAudience,
-    db: AsyncSession = Depends(get_db),
-) -> list[PriceTier]:
-    return await store.list_price_tiers(db, pricing_audience)
+async def list_price_tiers(pricing_audience: PricingAudience) -> list[PriceTier]:
+    # Tabela fixa (app/pricing.py); só para exibição: o pedido é precificado no servidor.
+    return price_tiers(pricing_audience)
 
 
 @app.post("/api/orders", response_model=Order, status_code=201)

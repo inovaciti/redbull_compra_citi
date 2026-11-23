@@ -28,6 +28,7 @@ from .models import (
     ReservationStatus,
     StockMovementSource,
     StockMovementType,
+    pricing_audience_for_email,
 )
 from .payments import (
     ChargeResult,
@@ -35,6 +36,7 @@ from .payments import (
     PaymentProviderError,
     PaymentResult,
 )
+from .pricing import order_total, unit_price
 from .stock_service import set_stock_context
 from .store import store
 
@@ -148,6 +150,7 @@ async def _prepare_payment(
                     "A cobrança deste pedido não pode ser gerada novamente"
                 )
         else:
+            _ensure_fixed_price(order)
             payment = PaymentORM(
                 id=uuid4(),
                 order_id=order_id,
@@ -167,6 +170,31 @@ async def _prepare_payment(
 
         await db.flush()
         return Decimal(order.total), order.payer_email, False
+
+
+def _ensure_fixed_price(order: OrderORM) -> None:
+    """Última conferência antes de cobrar: o pedido tem de bater com a tabela fixa.
+
+    O pedido já nasce com o preço da tabela (``store.reserve_order``) e o banco
+    recusa gravar outro; isto impede cobrar caso algo tenha escapado das duas.
+    """
+    quantity = sum(item.quantity for item in order.items)
+    expected_audience = (
+        pricing_audience_for_email(order.payer_email) if order.payer_email else None
+    )
+    valid = (
+        quantity >= 1
+        and order.pricing_audience == expected_audience
+        and all(
+            item.unit_price == unit_price(order.pricing_audience, quantity)
+            and item.subtotal == item.unit_price * item.quantity
+            for item in order.items
+        )
+        and order.total == order_total(order.pricing_audience, quantity)
+    )
+    if not valid:
+        logger.error("Cobrança bloqueada: preço do pedido fora da tabela fixa: order_id=%s", order.id)
+        raise PaymentServiceError("O preço deste pedido não confere com a tabela de preços")
 
 
 async def _save_charge(

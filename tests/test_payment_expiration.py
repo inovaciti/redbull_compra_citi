@@ -11,7 +11,6 @@ from app.db.models import (
     ManualReviewORM,
     OrderORM,
     PaymentORM,
-    PriceTierORM,
     ProductORM,
     WebhookEventORM,
 )
@@ -22,7 +21,6 @@ from app.models import (
     OrderItemInput,
     OrderStatus,
     PaymentStatus,
-    PricingAudience,
     ReservationStatus,
 )
 from app.payment_service import (
@@ -55,7 +53,7 @@ class ExpirationTestProvider:
         idempotency_key: str,
         payer_email: str,
     ) -> ChargeResult:
-        assert payer_email == "comprador@example.com"
+        assert payer_email == "comprador@citi.org.br"
         order_id = f"expiration-order-{external_reference}"
         payment_id = f"expiration-payment-{external_reference}"
         self.orders[order_id] = PaymentResult(
@@ -121,7 +119,6 @@ async def reset_database(stock_overrides: dict[str, int] | None = None) -> None:
         await session.execute(delete(ManualReviewORM))
         await session.execute(delete(WebhookEventORM))
         await session.execute(delete(OrderORM))
-        await session.execute(update(PriceTierORM).values(active=True))
         for product_id, stock in stocks.items():
             await session.execute(
                 update(ProductORM)
@@ -134,8 +131,7 @@ async def reset_database(stock_overrides: dict[str, int] | None = None) -> None:
 def payload(name: str = "Expiração", quantity: int = 1) -> OrderCreate:
     return OrderCreate(
         buyer_name=name,
-        payer_email="comprador@example.com",
-        pricing_audience=PricingAudience.MEMBER,
+        payer_email="comprador@citi.org.br",
         items=[OrderItemInput(product_id="original", quantity=quantity)],
     )
 
@@ -499,8 +495,7 @@ def test_inconsistent_reservation_does_not_block_other_expirations():
                 session,
                 OrderCreate(
                     buyer_name="Normal",
-                    payer_email="comprador@example.com",
-                    pricing_audience=PricingAudience.MEMBER,
+                    payer_email="comprador@citi.org.br",
                     items=[OrderItemInput(product_id="tropical", quantity=1)],
                 ),
                 provider,

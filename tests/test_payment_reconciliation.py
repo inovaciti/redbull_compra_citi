@@ -7,13 +7,12 @@ import pytest
 from sqlalchemy import delete, select, update
 
 from app.db.base import AsyncSessionLocal, engine
-from app.db.models import OrderORM, PaymentORM, PriceTierORM, ProductORM
+from app.db.models import OrderORM, PaymentORM, ProductORM
 from app.models import (
     OrderCreate,
     OrderItemInput,
     OrderStatus,
     PaymentStatus,
-    PricingAudience,
     ReservationStatus,
 )
 from app.payment_service import (
@@ -47,7 +46,7 @@ class ReconciliationProvider:
         payer_email: str,
     ) -> ChargeResult:
         assert idempotency_key
-        assert payer_email == "comprador@example.com"
+        assert payer_email == "comprador@citi.org.br"
         provider_order_id = f"reconcile-order-{external_reference}"
         provider_payment_id = f"reconcile-payment-{external_reference}"
         self.orders[provider_order_id] = PaymentResult(
@@ -98,7 +97,6 @@ class ReconciliationProvider:
 async def reset_database() -> None:
     async with AsyncSessionLocal() as db, db.begin():
         await db.execute(delete(OrderORM))
-        await db.execute(update(PriceTierORM).values(active=True))
         await db.execute(
             update(ProductORM)
             .where(ProductORM.id == "original")
@@ -113,8 +111,7 @@ async def create_pending(provider: ReconciliationProvider, name: str):
             db,
             OrderCreate(
                 buyer_name=name,
-                payer_email="comprador@example.com",
-                pricing_audience=PricingAudience.MEMBER,
+                payer_email="comprador@citi.org.br",
                 items=[OrderItemInput(product_id="original", quantity=1)],
             ),
             provider,

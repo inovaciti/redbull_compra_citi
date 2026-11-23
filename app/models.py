@@ -1,10 +1,9 @@
 from datetime import datetime
-from decimal import Decimal
 from enum import StrEnum
 import re
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
@@ -26,6 +25,20 @@ class OrderStatus(StrEnum):
 class PricingAudience(StrEnum):
     MEMBER = "MEMBER"
     NON_MEMBER = "NON_MEMBER"
+
+
+MEMBER_EMAIL_DOMAIN = "citi.org.br"
+
+
+def pricing_audience_for_email(normalized_email: str) -> PricingAudience:
+    """Membro é quem paga com e-mail do domínio do CITi (exatamente, sem subdomínios).
+
+    Recebe o e-mail já normalizado por ``normalize_payer_email``.
+    """
+    domain = normalized_email.rpartition("@")[2]
+    if domain == MEMBER_EMAIL_DOMAIN:
+        return PricingAudience.MEMBER
+    return PricingAudience.NON_MEMBER
 
 
 class ReservationStatus(StrEnum):
@@ -67,15 +80,25 @@ class Product(BaseModel):
 
 
 class OrderItemInput(BaseModel):
+    # Campo desconhecido (preço, subtotal...) é recusado: o preço nunca vem do cliente.
+    model_config = ConfigDict(extra="forbid")
+
     product_id: str
     quantity: int = Field(ge=1, le=20)
 
 
 class OrderCreate(BaseModel):
+    # Campo desconhecido (total, público, preço...) é recusado: o preço nunca vem do cliente.
+    model_config = ConfigDict(extra="forbid")
+
     buyer_name: str = Field(min_length=2, max_length=80)
     payer_email: str = Field(min_length=3, max_length=254)
-    pricing_audience: PricingAudience
     items: list[OrderItemInput] = Field(min_length=1)
+
+    @property
+    def pricing_audience(self) -> PricingAudience:
+        # Definido pelo servidor a partir do e-mail; o cliente não escolhe a tabela.
+        return pricing_audience_for_email(self.payer_email)
 
     @field_validator("buyer_name")
     @classmethod
@@ -114,14 +137,14 @@ class Order(BaseModel):
     total: float
     status: OrderStatus
     pricing_audience: PricingAudience
-    price_tier_id: int
     created_at: datetime
     paid_at: datetime | None = None
     payment: PaymentData
 
 
 class PriceTier(BaseModel):
-    id: int
+    """Faixa da tabela fixa de preços (``app/pricing.py``), só para exibição."""
+
     pricing_audience: PricingAudience
     min_quantity: int
     max_quantity: int | None
@@ -284,15 +307,7 @@ class StockSummary(BaseModel):
 
 
 class PriceTable(BaseModel):
-    """Faixas de preço ativas de um público, como exibidas no painel."""
+    """Faixas fixas de um público, como exibidas no painel (somente leitura)."""
 
     pricing_audience: PricingAudience
-    base_price: float | None = None
     tiers: list[PriceTier]
-
-
-class PriceTableUpdate(BaseModel):
-    """Novo preço base (1 lata); para membros, as demais faixas são derivadas dele."""
-
-    pricing_audience: PricingAudience
-    base_price: Decimal = Field(gt=Decimal("0"), le=Decimal("1000.00"), decimal_places=2)

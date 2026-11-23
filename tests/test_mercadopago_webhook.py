@@ -13,7 +13,6 @@ from app.db.base import AsyncSessionLocal, engine
 from app.db.models import (
     OrderORM,
     PaymentORM,
-    PriceTierORM,
     ProductORM,
     WebhookEventORM,
 )
@@ -23,7 +22,6 @@ from app.models import (
     OrderItemInput,
     OrderStatus,
     PaymentStatus,
-    PricingAudience,
     ReservationStatus,
 )
 from app.payment_service import (
@@ -43,7 +41,6 @@ async def reset_database() -> None:
     async with AsyncSessionLocal() as session, session.begin():
         await session.execute(delete(WebhookEventORM))
         await session.execute(delete(OrderORM))
-        await session.execute(update(PriceTierORM).values(active=True))
         for product_id, stock in INITIAL_STOCK.items():
             await session.execute(
                 update(ProductORM)
@@ -68,7 +65,7 @@ class MercadoPagoWebhookTestProvider:
         idempotency_key: str,
         payer_email: str,
     ) -> ChargeResult:
-        assert payer_email == "comprador@example.com"
+        assert payer_email == "comprador@citi.org.br"
         order_id = f"mp-order-{external_reference}"
         payment_id = f"mp-payment-{external_reference}"
         self.order_results[order_id] = PaymentResult(
@@ -106,8 +103,7 @@ class MercadoPagoWebhookTestProvider:
 def order_payload() -> OrderCreate:
     return OrderCreate(
         buyer_name="Webhook Mercado Pago",
-        payer_email="comprador@example.com",
-        pricing_audience=PricingAudience.MEMBER,
+        payer_email="comprador@citi.org.br",
         items=[OrderItemInput(product_id="original", quantity=2)],
     )
 

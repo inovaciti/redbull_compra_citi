@@ -72,9 +72,6 @@ class OrderORM(Base):
         default=PricingAudience.MEMBER,
         server_default=PricingAudience.MEMBER.value,
     )
-    price_tier_id: Mapped[int | None] = mapped_column(
-        ForeignKey("price_tiers.id"),
-    )
     reservation_status: Mapped[ReservationStatus] = mapped_column(
         Enum(ReservationStatus, name="reservation_status"),
         nullable=False,
@@ -87,7 +84,6 @@ class OrderORM(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
-    price_tier: Mapped["PriceTierORM | None"] = relationship()
     payment: Mapped["PaymentORM | None"] = relationship(
         back_populates="order",
         uselist=False,
@@ -120,38 +116,6 @@ class OrderItemORM(Base):
     subtotal: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
 
     order: Mapped[OrderORM] = relationship(back_populates="items")
-
-
-class PriceTierORM(Base):
-    __tablename__ = "price_tiers"
-    __table_args__ = (
-        CheckConstraint("min_quantity >= 1", name="ck_price_tiers_min_quantity"),
-        CheckConstraint(
-            "max_quantity IS NULL OR max_quantity >= min_quantity",
-            name="ck_price_tiers_quantity_range",
-        ),
-        CheckConstraint("unit_price > 0", name="ck_price_tiers_unit_price"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    pricing_audience: Mapped[PricingAudience] = mapped_column(
-        Enum(PricingAudience, name="pricing_audience"),
-        nullable=False,
-    )
-    min_quantity: Mapped[int] = mapped_column(Integer, nullable=False)
-    max_quantity: Mapped[int | None] = mapped_column(Integer)
-    unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    active: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=True,
-        server_default=text("true"),
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-    )
 
 
 class PaymentORM(Base):
