@@ -1,0 +1,120 @@
+/* Base: propriedades registradas, reset mínimo, palco e superfície de vidro genérica. */
+
+@property --g {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffffff;
+}
+
+@property --k1 {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffffff;
+}
+
+@property --k2 {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffffff;
+}
+
+@property --k3 {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffffff;
+}
+
+@property --H {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --ang {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 360deg;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  background: #000;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.app {
+  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 560px;
+  overflow: hidden;
+  /* clip: nada de fora consegue rolar a loja (foco num campo ou scrollIntoView rolariam um
+     contêiner "hidden" e deslocariam a gaveta para cima, sem jeito de voltar) */
+  overflow: clip;
+  background: #000;
+  color: #F5F5F7;
+  font-family: Geist,Inter,system-ui,sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.stage-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(60% 46% at 50% 58%,#1B1C20 0%,#0B0B0D 52%,#000 100%);
+}
+
+.cw {
+  position: absolute;
+  inset: 0;
+}
+
+.cw canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  opacity: 0;
+  transition: opacity .6s ease;
+}
+
+/* a geladeira só aparece depois do primeiro quadro completo (cooler-scene.js) */
+.cw canvas.is-ready {
+  opacity: 1;
+}
+
+.glass {
+  position: relative;
+  background: linear-gradient(180deg,rgba(255,255,255,.11) 0%,rgba(255,255,255,.045) 100%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.05),0 24px 70px rgba(0,0,0,.55);
+}
+
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(120% 60% at 18% -10%,rgba(255,255,255,.16),transparent 55%);
+  mix-blend-mode: screen;
+}
+
+:focus-visible {
+  outline: 2px solid #8AB4FF;
+  outline-offset: 2px;
+}

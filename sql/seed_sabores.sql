@@ -1,8 +1,8 @@
 -- =====================================================================
 -- Catálogo de sabores Red Bull do marketplace CITi (OPCIONAL)
 --
--- Cadastra os 12 sabores que o PDV já sabe exibir (imagens em
--- app/static/assets). Rode só depois de `alembic upgrade head`.
+-- Cadastra os 12 sabores que a loja já sabe exibir (visuais em
+-- app/static/storefront/src/data/flavors.js). Rode só depois de `alembic upgrade head`.
 --
 -- Seguro para rodar mais de uma vez e no banco institucional:
 --   * não altera sabores existentes (nem estoque, nem nome);
@@ -40,11 +40,11 @@ BEGIN
             ('original',              'Energy Original',        'Regular',   'O clássico que dá asas.',          '#164194'),
             ('tropical',              'Tropical',               'Regular',   'Sabor tropical e refrescante.',    '#f5c400'),
             ('melancia',              'Melancia',               'Regular',   'Leve, frutado e marcante.',        '#e7354f'),
-            ('nectarina',             'Nectarina',              'Regular',   'Edição de verão de nectarina.',    '#f28c28'),
+            ('acai',                  'Açaí',                   'Regular',   'Sabor açaí.',                      '#5a2b8c'),
             ('melao_e_maracuja',      'Melão e Maracujá',       'Regular',   'Melão com maracujá.',              '#7cc242'),
             ('morango_e_pessego',     'Morango e Pêssego',      'Regular',   'Morango com pêssego.',             '#e8506e'),
-            ('zero_tradicional',      'Tradicional Zero',       'Zero',      'Zero açúcar e zero calorias.',     '#9aa3ad'),
-            ('tradicional_sugarfree', 'Tradicional Sugarfree',  'Sugarfree', 'Sem açúcar.',                      '#4fb3e8'),
+            ('tradicional_sugarfree', 'Sugarfree',              'Sugarfree', 'Sem açúcar.',                      '#4fb3e8'),
+            ('zero_tradicional',      'Zero',                   'Zero',      'Zero açúcar e zero calorias.',     '#9aa3ad'),
             ('nectarina_sugarfree',   'Nectarina Sugarfree',    'Sugarfree', 'Nectarina sem açúcar.',            '#f5a25d'),
             ('pomelo_sugarfree',      'Pomelo Sugarfree',       'Sugarfree', 'Pomelo sem açúcar.',               '#f07c8c'),
             ('amora_sugarfree',       'Amora Sugarfree',        'Sugarfree', 'Amora sem açúcar.',                '#7b4fa0'),

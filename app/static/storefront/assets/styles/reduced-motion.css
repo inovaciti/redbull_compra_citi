@@ -1,0 +1,54 @@
+/* Acessibilidade: com "reduzir movimento" ativo, animações e transições são desligadas. */
+
+@media (prefers-reduced-motion: reduce) {
+  .cw canvas,
+  .cart,
+  .toast,
+  .name,
+  .fab,
+  .cart-btn,
+  .dr-leaf,
+  .dr-lit,
+  .dr-spill,
+  .door .tint {
+    transition: none;
+  }
+  .px-now,
+  .px::before,
+  .cs-face,
+  .cs-face *,
+  .cs-eg,
+  .cs-eg::after,
+  .cs-et {
+    animation: none!important;
+  }
+  .cart,
+  .cart *,
+  .veil,
+  .brand,
+  .fabs,
+  .dock {
+    transition-duration: .01ms!important;
+    transition-delay: 0s!important;
+    animation-duration: .01ms!important;
+    animation-delay: 0s!important;
+  }
+  .qn,
+  .ad-a,
+  .ad-b {
+    animation: none!important;
+    transition: none;
+  }
+  .fab,
+  .fab *,
+  .dr *,
+  .cart-btn,
+  .cart-btn *,
+  .name .ln,
+  .cv-img,
+  .cv-glow,
+  .cv-glow::after,
+  .rc svg {
+    animation: none!important;
+  }
+}

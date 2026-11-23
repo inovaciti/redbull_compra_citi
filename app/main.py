@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import mimetypes
 import os
 from contextlib import asynccontextmanager
 from io import BytesIO
@@ -8,7 +9,7 @@ from uuid import UUID
 
 import qrcode
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from qrcode.image.svg import SvgPathImage
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,9 +39,29 @@ from .payment_service import (
 from .buyer_memory import router as buyer_memory_router
 from .pricing import price_tiers
 from .stock_panel import router as stock_panel_router
+from .storefront_assets import render_store_html, warm_gzip_cache
+from .storefront_assets import router as storefront_assets_router
 from .store import store
 
 BASE_DIR = Path(__file__).resolve().parent
+# Tipos dos arquivos 3D da geladeira (cooler/latas/), que o Python não conhece.
+mimetypes.add_type("model/gltf-binary", ".glb")
+mimetypes.add_type("image/vnd.radiance", ".hdr")
+# A loja não usa nada inline nem de outros domínios. ``img-src data: blob:``
+# é exigido pelo vidro líquido, que gera os mapas de refração como imagens, e
+# ``connect-src blob:`` pelo carregador das latas 3D, que lê as texturas
+# embutidas nos GLBs a partir de URLs blob criadas na própria página.
+STORE_PAGE_HEADERS = {
+    "Cache-Control": "no-store",
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "same-origin",
+    "Content-Security-Policy": (
+        "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; "
+        "img-src 'self' data: blob:; connect-src 'self' blob:; object-src 'none'; "
+        "frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+    ),
+}
 # Logs do app (INFO por padrão, LOG_LEVEL muda): sem isto só avisos e erros apareceriam, porque o
 # uvicorn configura apenas os próprios loggers. Nenhum log leva token, assinatura, QR, código Pix
 # ou e-mail completo.
@@ -80,6 +101,8 @@ async def lifespan(app: FastAPI):
         app.state.payment_provider = create_payment_provider(settings)
     if getattr(app.state, "payment_settings", None) is None:
         app.state.payment_settings = settings
+    # cópias gzip dos arquivos da loja, em segundo plano (a primeira visita já sai comprimida)
+    gzip_task = asyncio.create_task(asyncio.to_thread(warm_gzip_cache), name="storefront-gzip-warm")
     expiration_task = asyncio.create_task(
         _expiration_loop(app, settings.payment_expiration_check_interval),
         name="payment-expiration-loop",
@@ -87,6 +110,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        gzip_task.cancel()
         expiration_task.cancel()
         try:
             await expiration_task
@@ -108,14 +132,18 @@ app = FastAPI(
     redoc_url="/redoc" if _API_DOCS else None,
     openapi_url="/openapi.json" if _API_DOCS else None,
 )
+# a rota versionada da loja vem antes da montagem de /static, que capturaria /static/v/...
+app.include_router(storefront_assets_router)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(stock_panel_router)
 app.include_router(buyer_memory_router)
 
 
 @app.get("/", include_in_schema=False)
-def frontend() -> FileResponse:
-    return FileResponse(BASE_DIR / "static" / "index.html")
+def store_page() -> HTMLResponse:
+    # O HTML fica fora de /static para só existir com estes cabeçalhos; ele aponta
+    # para a versão atual dos arquivos da loja (cache longo, ver storefront_assets).
+    return HTMLResponse(render_store_html(), headers=STORE_PAGE_HEADERS)
 
 
 @app.get("/api/health")

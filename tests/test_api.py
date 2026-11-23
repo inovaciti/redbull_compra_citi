@@ -57,6 +57,60 @@ def test_health_and_products(client):
     assert [tier["unit_price"] for tier in other_tiers] == [12.0]
 
 
+def test_store_page_is_served_with_strict_csp(client):
+    page = client.get("/")
+    assert page.status_code == 200
+    assert '<main id="storefront">' in page.text
+    assert page.headers["cache-control"] == "no-store"
+    assert page.headers["x-frame-options"] == "DENY"
+    csp = page.headers["content-security-policy"]
+    assert "script-src 'self'" in csp and "style-src 'self'" in csp
+    assert "unsafe-inline" not in csp
+    assert client.get("/static/storefront/src/pdv.js").status_code == 200
+    # O HTML da loja só existe pela rota "/", com os cabeçalhos acima.
+    assert client.get("/static/index.html").status_code == 404
+
+
+def test_store_assets_are_versioned_cached_and_compressed(client):
+    import re
+    from pathlib import Path
+
+    page = client.get("/").text
+    # todos os arquivos da loja apontam para a versão atual (cache longo seguro)
+    assert "/static/storefront/" not in page
+    base = re.search(r'/static/v/([0-9a-f]{12})/storefront/', page).group(0)
+    assert f'<link rel="modulepreload" href="{base}src/pdv.js">' in page
+    # o código 3D vem sob demanda, fora do modulepreload; só o enquadramento (sem Three.js),
+    # que o loading usa para levar a geladeira ao lugar dela, é pré-carregado
+    assert f'<link rel="modulepreload" href="{base}src/scene/cooler-frame.js">' in page
+    assert page.count("src/scene/") == 1 and "vendor/three/" not in page
+
+    original = (Path("app/static/storefront/src/pdv.js")).read_bytes()
+    plain = client.get(base + "src/pdv.js", headers={"Accept-Encoding": "identity"})
+    assert plain.status_code == 200
+    assert plain.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert plain.headers["content-type"].startswith("text/javascript")
+    assert "content-encoding" not in plain.headers
+    assert plain.content == original
+
+    zipped = client.get(base + "src/pdv.js", headers={"Accept-Encoding": "gzip"})
+    assert zipped.headers["content-encoding"] == "gzip"
+    # o TestClient já descomprime: o conteúdo entregue é byte a byte o do disco
+    assert zipped.content == original
+    raw = client.get(base + "cooler/latas/studio.hdr", headers={"Accept-Encoding": "gzip"})
+    assert raw.headers["content-type"] == "image/vnd.radiance"
+    assert raw.content == Path("app/static/storefront/cooler/latas/studio.hdr").read_bytes()
+
+    # imagens já comprimidas vão como estão
+    image = client.get(base + "assets/images/cans/original.webp", headers={"Accept-Encoding": "gzip"})
+    assert "content-encoding" not in image.headers
+
+    # nada fora da pasta da loja (".." codificado, como chegaria de um cliente malicioso)
+    assert client.get(base + "%2e%2e/%2e%2e/main.py").status_code == 404
+    assert client.get(base + "..%2f..%2fmain.py").status_code == 404
+    assert client.get(base + "nao-existe.js").status_code == 404
+
+
 @pytest.mark.parametrize(
     "payer_email",
     [None, "", "sem-arroba", "a@b", f"a@{'b' * 250}.com"],

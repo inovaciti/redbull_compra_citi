@@ -1,0 +1,128 @@
+/* Nome do sabor em contorno degradê e preço. */
+
+.det {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nmw {
+  flex: 1;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.name {
+  --cap: 40px;
+  --g: #fff;
+  --H: calc(var(--L,2) * .9 * min(var(--cap), 100cqw / var(--n,8)));
+  margin: -12px;
+  padding: 12px;
+  height: calc(var(--H) + 24px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  font-family: Poppins,Geist,sans-serif;
+  font-weight: 800;
+  font-size: min(var(--cap),calc(100cqw / var(--n,8)));
+  line-height: .9;
+  letter-spacing: .012em;
+  text-transform: uppercase;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: url(#nmOutline) drop-shadow(0 0 10px color-mix(in srgb,var(--k2) 45%,transparent));
+  transition: --k1 .6s ease,--k2 .6s ease,--k3 .6s ease,--H .85s cubic-bezier(.22,1,.36,1);
+}
+
+.nmw {
+  position: relative;
+  isolation: isolate;
+  transition: --k1 .6s ease,--k2 .6s ease,--k3 .6s ease;
+}
+
+.name .ln {
+  display: block;
+  width: max-content;
+  white-space: nowrap;
+  background: linear-gradient(105deg,transparent 40%,rgba(255,255,255,.96) 50%,transparent 60%) 170% 0/260% 100% no-repeat,linear-gradient(100deg,var(--k1),var(--k2) 52%,var(--k3));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: nmShine 7s ease-in-out infinite;
+}
+
+.name.is-entering .ln {
+  animation: nameLineIn .75s cubic-bezier(.2,.9,.2,1) both,nmShine 7s 1s ease-in-out infinite;
+}
+
+.name.is-entering .ln:nth-child(2) {
+  animation-delay: .08s;
+}
+
+.pr {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  flex: 0 0 auto;
+  padding-bottom: 2px;
+}
+
+.sub {
+  margin: 0;
+  font: 400 11px/1 "Geist Mono",ui-monospace,monospace;
+  color: rgba(245,245,247,.5);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.price {
+  font: 500 17px/1 "Geist Mono",ui-monospace,monospace;
+  letter-spacing: -.02em;
+  white-space: nowrap;
+  min-width: 8ch;
+  text-align: right;
+}
+
+@media (min-width: 1024px) {
+  .det {
+    margin-top: auto;
+    padding-top: 18px;
+  }
+  .name {
+    --cap: 60px;
+  }
+}
+
+@keyframes nmShine {
+  0%,
+  52% {
+    background-position: 170% 0,0 0;
+  }
+  100% {
+    background-position: -70% 0,0 0;
+  }
+}
+
+@keyframes nameLineIn {
+  0% {
+    opacity: 0;
+    transform: translateY(60%);
+    filter: blur(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+/* filtro SVG de contorno do nome fica fora do fluxo */
+.svg-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}

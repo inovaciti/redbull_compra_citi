@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR" class="is-booting">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>Red Bull no CITi</title>
+  <!-- loading: a geladeira apagada pinta antes de qualquer outro estilo ou script (boot.css) -->
+  <link rel="preload" as="image" href="/static/storefront/assets/loading/fridge-dark-m.webp" media="(max-width: 1023px)" fetchpriority="high">
+  <link rel="preload" as="image" href="/static/storefront/assets/loading/fridge-dark-d.webp" media="(min-width: 1024px)" fetchpriority="high">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/boot.css">
+  <noscript><link rel="stylesheet" href="/static/storefront/assets/styles/boot-noscript.css"></noscript>
+  <!-- dados da loja: começam a baixar junto com os módulos, não depois deles -->
+  <link rel="preload" href="/api/products" as="fetch" crossorigin>
+  <link rel="preload" href="/api/price-tiers?pricing_audience=MEMBER" as="fetch" crossorigin>
+  <link rel="preload" href="/api/price-tiers?pricing_audience=NON_MEMBER" as="fetch" crossorigin>
+  <link rel="preload" href="/api/comprador" as="fetch" crossorigin>
+  <!-- fontes usadas no primeiro quadro -->
+  <link rel="preload" href="/static/storefront/assets/fonts/geist-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/storefront/assets/fonts/geist-500.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/storefront/assets/fonts/geist-600.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/storefront/assets/fonts/geist-800.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/storefront/assets/fonts/geist-mono-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/storefront/assets/fonts/geist-mono-500.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/storefront/assets/fonts/poppins-800.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- lata do primeiro sabor (Original, o primeiro de flavors.js): o maior elemento da primeira tela -->
+  <link rel="preload" href="/static/storefront/assets/images/cans/original.webp" as="image" fetchpriority="high">
+<!-- modulepreload -->
+</head>
+<body>
+<div class="boot" id="boot" role="status" aria-live="polite" aria-busy="true">
+    <span class="boot__sr">Carregando</span>
+    <div class="boot__bg"></div>
+    <div class="boot__stage" data-fridge-m="0.12199 0.06313 0.75602 0.88981" data-fridge-d="0.12282 0.06409 0.75436 0.89120">
+      <div class="boot__art"><!--boot-art--><div class="boot__wipe"><div class="boot__wipe-in">
+      <picture>
+        <source media="(max-width: 1023px)" srcset="/static/storefront/assets/loading/fridge-dark-m.webp" width="1168" height="1228">
+        <img class="boot__img boot__dark" src="/static/storefront/assets/loading/fridge-dark-d.webp" width="1377" height="1437" alt="" decoding="async" fetchpriority="high">
+      </picture>
+      <picture>
+        <source media="(max-width: 1023px)" srcset="/static/storefront/assets/loading/fridge-glow-m.webp" width="1168" height="1228">
+        <img class="boot__img boot__glow" src="/static/storefront/assets/loading/fridge-glow-d.webp" width="1377" height="1437" alt="" decoding="async" fetchpriority="low">
+      </picture>
+      <div class="boot__led boot__led--m" aria-hidden="true"><div class="boot__worm"><i class="boot__comet"></i></div></div>
+      <div class="boot__led boot__led--d" aria-hidden="true"><div class="boot__worm"><i class="boot__comet"></i></div></div>
+    </div></div><!--/boot-art--></div>
+    </div>
+  </div>
+  <!-- estilos da loja depois do loading: não atrasam a primeira pintura da geladeira -->
+  <link rel="stylesheet" href="/static/storefront/assets/styles/fonts.css">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/base.css">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/header.css">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/controls.css">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/carousel.css">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/product.css">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/price-swap.css">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/liquid-glass.css">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/cart.css">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/toast.css">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/pdv.css">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/payment.css">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/responsive.css">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/reduced-motion.css">
+  <link rel="stylesheet" href="/static/storefront/assets/styles/lite.css">
+  <main id="storefront"></main>
+  <script type="module" src="/static/storefront/src/pdv.js"></script>
+</body>
+</html>
