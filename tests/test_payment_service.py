@@ -52,7 +52,7 @@ def order_payload() -> OrderCreate:
 
 
 class RecordingProvider:
-    provider_name = "mock"
+    provider_name = "mercadopago"
 
     def __init__(self, db=None, error: PaymentProviderError | None = None) -> None:
         self.db = db
@@ -129,7 +129,7 @@ def test_order_orchestration_happy_path_commits_reservation_before_provider():
     assert calls[0]["transaction_open"] is False
     assert calls[0]["external_reference"] == str(order.id)
     assert calls[0]["idempotency_key"] == payment_idempotency_key(order.id)
-    assert payment.provider == PaymentProvider.MOCK
+    assert payment.provider == PaymentProvider.MERCADOPAGO
     assert payment.status == PaymentStatus.WAITING_PAYMENT
     assert payment.provider_order_id == f"provider-order-{order.id}"
     assert payment.provider_payment_id == f"provider-payment-{order.id}"

@@ -402,7 +402,7 @@ def test_manual_command_dry_run_then_real_reuses_central_transaction(
         monkeypatch.setattr(
             reconcile_command,
             "settings",
-            type("CommandSettings", (), {"payment_provider": "mercadopago"})(),
+            object(),
         )
         monkeypatch.setattr(
             reconcile_command,

@@ -15,6 +15,7 @@ from app.models import (
 )
 from app.main import app
 from app.store import store
+from tests.fakes import pay_via_webhook
 
 
 INITIAL_STOCK = {"original": 24, "tropical": 18, "melancia": 16}
@@ -42,7 +43,7 @@ def client():
 
 
 def test_health_and_products(client):
-    assert client.get("/api/health").json()["storage"] == "postgresql"
+    assert client.get("/api/health").json() == {"status": "ok"}
     products = client.get("/api/products").json()
     assert len(products) == 3
     assert all(product["category"] == "Regular" for product in products)
@@ -141,7 +142,12 @@ def test_product_listing_shows_stock_minus_active_reservations(client):
     assert original["stock"] == INITIAL_STOCK["original"] - 2
 
 
-def test_order_payment_is_idempotent(client):
+def test_mock_payment_routes_do_not_exist(client):
+    assert client.post("/api/mock/pay/qualquer").status_code == 404
+    assert client.get("/api/mock/qr/qualquer").status_code == 404
+
+
+def test_order_payment_is_idempotent(client, pix_provider):
     created = client.post(
         "/api/orders",
         json={
@@ -153,8 +159,8 @@ def test_order_payment_is_idempotent(client):
     )
     assert created.status_code == 201
     order = created.json()
-    first = client.post(f"/api/mock/pay/{order['payment']['txid']}").json()
-    second = client.post(f"/api/mock/pay/{order['payment']['txid']}").json()
+    first = pay_via_webhook(client, pix_provider, order["payment"]["txid"]).json()
+    second = pay_via_webhook(client, pix_provider, order["payment"]["txid"]).json()
     assert first["processed"] is True
     assert second["processed"] is False
 
@@ -163,7 +169,7 @@ def test_order_payment_is_idempotent(client):
     assert refreshed["payment"]["status"] == "APPROVED"
 
 
-def test_order_cancellation_releases_reservation_and_is_idempotent(client):
+def test_order_cancellation_releases_reservation_and_is_idempotent(client, pix_provider):
     created = client.post(
         "/api/orders",
         json={
@@ -198,11 +204,13 @@ def test_order_cancellation_releases_reservation_and_is_idempotent(client):
     )
     assert after_cancellation["stock"] == INITIAL_STOCK["original"]
 
-    simulated_payment = client.post(f"/api/mock/pay/{order['payment']['txid']}")
-    assert simulated_payment.status_code == 409
+    # pagamento que chega depois do cancelamento não é perdido: vai para revisão manual
+    late = pay_via_webhook(client, pix_provider, order["payment"]["txid"])
+    assert late.status_code == 200
+    assert late.json()["outcome"] == "approved_after_cancellation"
 
 
-def test_paid_order_cannot_be_cancelled(client):
+def test_paid_order_cannot_be_cancelled(client, pix_provider):
     created = client.post(
         "/api/orders",
         json={
@@ -212,8 +220,9 @@ def test_paid_order_cannot_be_cancelled(client):
             "items": [{"product_id": "original", "quantity": 1}],
         },
     ).json()
-    paid = client.post(f"/api/mock/pay/{created['payment']['txid']}")
+    paid = pay_via_webhook(client, pix_provider, created["payment"]["txid"])
     assert paid.status_code == 200
+    assert paid.json()["outcome"] == "approved"
 
     cancellation = client.post(f"/api/orders/{created['id']}/cancel")
     assert cancellation.status_code == 409

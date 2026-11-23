@@ -85,67 +85,6 @@ def _parse_datetime(value: object) -> datetime | None:
     return parsed
 
 
-class MockPaymentProvider:
-    provider_name = "mock"
-
-    def __init__(self, settings: Settings) -> None:
-        self.settings = settings
-        self._orders: dict[str, PaymentResult] = {}
-
-    async def create_charge(
-        self,
-        external_reference: str,
-        amount: Decimal,
-        idempotency_key: str,
-        payer_email: str,
-    ) -> ChargeResult:
-        if not idempotency_key:
-            raise PaymentProviderError("A chave de idempotência é obrigatória")
-        provider_order_id = f"MOCK-ORDER-{external_reference}"
-        provider_payment_id = f"MOCK-PAYMENT-{external_reference}"
-        expires_at = datetime.now(UTC) + timedelta(
-            seconds=self.settings.payment_checkout_expires_in
-        )
-        self._orders[provider_order_id] = PaymentResult(
-            provider_order_id=provider_order_id,
-            provider_payment_id=provider_payment_id,
-            status="WAITING_PAYMENT",
-            amount=amount,
-            currency="BRL",
-            approved_at=None,
-        )
-        return ChargeResult(
-            provider_order_id=provider_order_id,
-            provider_payment_id=provider_payment_id,
-            qr_code=f"/api/mock/qr/{provider_payment_id}",
-            copy_paste=(
-                f"00020126PIX-SIMULADO-{external_reference}-VALOR-{amount:.2f}"
-            ),
-            amount=amount,
-            expires_at=expires_at,
-        )
-
-    async def get_order(self, order_id: str) -> PaymentResult:
-        try:
-            return self._orders[order_id]
-        except KeyError as exc:
-            raise PaymentProviderError("Order mock não encontrada") from exc
-
-    async def cancel_order(self, order_id: str, idempotency_key: str) -> None:
-        if not idempotency_key:
-            raise PaymentProviderError("A chave de idempotência é obrigatória")
-        current = self._orders.get(order_id)
-        if current is None:
-            # O mock guarda as cobranças só em memória: após reiniciar o
-            # servidor não há mais nada para cancelar. Tratar como já
-            # cancelada permite liberar a reserva local em vez de prendê-la.
-            return
-        self._orders[order_id] = replace(current, status="CANCELLED")
-
-    async def aclose(self) -> None:
-        return None
-
-
 class MercadoPagoProvider:
     provider_name = "mercadopago"
 
@@ -574,9 +513,6 @@ def verify_mercadopago_signature(
 
 
 def create_payment_provider(settings: Settings) -> PaymentProvider:
+    """Provedor de produção (Mercado Pago), com a configuração validada antes."""
     settings.validate()
-    if settings.payment_provider == "mock":
-        return MockPaymentProvider(settings)
-    if settings.payment_provider == "mercadopago":
-        return MercadoPagoProvider(settings)
-    raise RuntimeError(f"Provedor de pagamento inválido: {settings.payment_provider}")
+    return MercadoPagoProvider(settings)

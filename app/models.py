@@ -44,6 +44,8 @@ class PaymentStatus(StrEnum):
 
 
 class PaymentProvider(StrEnum):
+    # MOCK é só histórico: a migration b7f2e6c9a104 gravou pagamentos antigos com esse valor e o
+    # tipo do banco o contém. Nenhum pagamento novo usa MOCK; o único provedor é o Mercado Pago.
     MOCK = "MOCK"
     MERCADOPAGO = "MERCADOPAGO"
 
@@ -103,7 +105,6 @@ class PaymentData(BaseModel):
     copy_paste: str
     status: PaymentStatus
     expires_at: datetime | None = None
-    simulated: bool = True
 
 
 class Order(BaseModel):

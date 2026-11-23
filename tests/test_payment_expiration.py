@@ -489,31 +489,6 @@ def test_webhook_anomalies_are_listed_for_manual_review(
     assert response.status_code == 404
 
 
-def test_mock_charge_lost_after_restart_still_releases_reservation():
-    """O mock guarda cobranças em memória; após reiniciar o servidor a
-    reserva vencida precisa ser liberada em vez de ficar presa."""
-    from app.config import settings
-    from app.payments import MockPaymentProvider
-
-    async def scenario():
-        await reset_database()
-        order = await create_order(MockPaymentProvider(settings))
-        cutoff = datetime.now(UTC)
-        await make_due(order.id, cutoff)
-        restarted = MockPaymentProvider(settings)  # memória perdida
-        async with AsyncSessionLocal() as session:
-            expired = await expire_due_payments(session, cutoff, provider=restarted)
-        state = await load_state(order.id)
-        await engine.dispose()
-        return expired, state
-
-    expired, state = asyncio.run(scenario())
-    assert expired == 1
-    assert state["payment_status"] == PaymentStatus.EXPIRED
-    assert state["reservation_status"] == ReservationStatus.RELEASED
-    assert state["reserved_stock"] == 0
-
-
 def test_inconsistent_reservation_does_not_block_other_expirations():
     async def scenario():
         await reset_database()

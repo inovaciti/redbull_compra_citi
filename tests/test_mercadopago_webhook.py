@@ -146,7 +146,6 @@ def webhook_settings() -> Settings:
     return Settings(
         mercadopago_access_token="test-access-token",
         mercadopago_webhook_secret=WEBHOOK_SECRET,
-        payment_provider="mercadopago",
         charge_expires_in=1800,
     )
 

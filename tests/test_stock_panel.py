@@ -31,6 +31,7 @@ from app.staff_auth import (
     verify_password,
 )
 from app.stock_service import apply_panel_movement
+from tests.fakes import pay_via_webhook
 
 
 INITIAL_STOCK = {"original": 24, "tropical": 18, "melancia": 16}
@@ -362,7 +363,7 @@ def test_marketplace_types_cannot_be_posted_from_panel(client):
 # --- Integração com o marketplace ----------------------------------------------
 
 
-def test_paid_marketplace_order_is_recorded_with_buyer_and_time(client):
+def test_paid_marketplace_order_is_recorded_with_buyer_and_time(client, pix_provider):
     created = client.post(
         "/api/orders",
         json={
@@ -377,9 +378,9 @@ def test_paid_marketplace_order_is_recorded_with_buyer_and_time(client):
     ).json()
     assert run(fetch_movements()) == []  # reservar não é saída de estoque
 
-    paid = client.post(f"/api/mock/pay/{created['payment']['txid']}")
+    paid = pay_via_webhook(client, pix_provider, created["payment"]["txid"])
     assert paid.status_code == 200
-    assert paid.json()["status"] == "PAID"
+    assert client.get(f"/api/orders/{created['id']}").json()["status"] == "PAID"
 
     movements = run(fetch_movements())
     assert sorted((m.product_id, m.delta) for m in movements) == [
@@ -396,7 +397,7 @@ def test_paid_marketplace_order_is_recorded_with_buyer_and_time(client):
         assert movement.staff_user_id is None
 
     # Repetir a confirmação não gera novas linhas.
-    client.post(f"/api/mock/pay/{created['payment']['txid']}")
+    pay_via_webhook(client, pix_provider, created["payment"]["txid"], event_id="evento-repetido")
     assert len(run(fetch_movements())) == 2
 
 
