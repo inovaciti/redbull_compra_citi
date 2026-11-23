@@ -46,6 +46,8 @@ Também continuam válidas as configurações de expiração já descritas no `R
 
 ### Checkout e persistência do e-mail
 
+> Nota (2026-11-18): `app/static/index.html`, `app.js` e `styles.css` foram removidos na troca da interface; veja `docs/refatoracao-frontend.md`.
+
 - `app/static/index.html` adiciona a tela de identificação entre o carrinho e o Pix, com rótulo, mensagens acessíveis, aviso de privacidade e navegação de retorno.
 - `app/static/app.js` normaliza o e-mail com `trim()` e conversão para minúsculas, valida o formato, bloqueia submissões duplicadas e preserva o valor digitado quando a API falha.
 - `app/static/styles.css` inclui os estados visual, inválido e de carregamento da nova tela.
