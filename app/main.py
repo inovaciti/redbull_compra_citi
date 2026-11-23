@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 from io import BytesIO
 from pathlib import Path
@@ -38,6 +39,16 @@ from .stock_panel import router as stock_panel_router
 from .store import store
 
 BASE_DIR = Path(__file__).resolve().parent
+# Logs do app (INFO por padrão, LOG_LEVEL muda): sem isto só avisos e erros apareceriam, porque o
+# uvicorn configura apenas os próprios loggers. Nenhum log leva token, assinatura, QR, código Pix
+# ou e-mail completo.
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO",
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+# o cliente HTTP registraria cada chamada ao Mercado Pago (a reconciliação consulta a cada ciclo)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
@@ -84,7 +95,17 @@ async def lifespan(app: FastAPI):
             app.state.payment_provider = None
 
 
-app = FastAPI(title="Red Bull PDV — MVP", version="0.1.0", lifespan=lifespan)
+# Documentação interativa da API (/docs, /redoc, /openapi.json) só quando pedida (API_DOCS=1):
+# em produção ela não fica exposta.
+_API_DOCS = settings.api_docs
+app = FastAPI(
+    title="Red Bull PDV",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/docs" if _API_DOCS else None,
+    redoc_url="/redoc" if _API_DOCS else None,
+    openapi_url="/openapi.json" if _API_DOCS else None,
+)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(stock_panel_router)
 

@@ -13,6 +13,8 @@ class Settings:
     charge_expires_in: int
     payment_checkout_expires_in: int = 600
     payment_expiration_check_interval: int = 5
+    # /docs, /redoc e /openapi.json (desligados por padrão; ligar só fora de produção)
+    api_docs: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -46,6 +48,7 @@ class Settings:
             charge_expires_in=charge_expires_in,
             payment_checkout_expires_in=payment_checkout_expires_in,
             payment_expiration_check_interval=payment_expiration_check_interval,
+            api_docs=os.getenv("API_DOCS", "").strip() == "1",
         )
 
     def validate(self) -> None:
