@@ -1,0 +1,7 @@
+# Desenvolvimento e testes (produção usa só requirements.txt)
+-r requirements.txt
+iniconfig==2.3.0
+pluggy==1.6.0
+Pygments==2.20.0
+pytest==8.4.1
+watchfiles==1.2.0
